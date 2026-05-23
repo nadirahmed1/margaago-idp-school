@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="so" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Margaago IDP School - Natiijada Ardayda</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --green: #1a6e3c;
+  --green-light: #2a9d5c;
+  --green-dark: #0f4a28;
+  --gold: #c9a832;
+  --gold-light: #e8c94a;
+  --cream: #fdf8f0;
+  --white: #ffffff;
+  --dark: #0d1f14;
+  --gray: #6b7c6e;
+  --red: #c0392b;
+  --blue: #1a4a7a;
+  --shadow: 0 8px 32px rgba(10,40,20,0.15);
+  --radius: 16px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background: var(--cream);
+  color: var(--dark);
+  min-height: 100vh;
+}
+
+/* ===== HEADER ===== */
+header {
+  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 60%, var(--green-light) 100%);
+  color: white;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+header::before {
+  content:'';
+  position:absolute;
+  top:-60px; right:-60px;
+  width:300px; height:300px;
+  background: radial-gradient(circle, rgba(201,168,50,0.25) 0%, transparent 70%);
+  border-radius:50%;
+}
+header::after {
+  content:'';
+  position:absolute;
+  bottom:-80px; left:-40px;
+  width:250px; height:250px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  border-radius:50%;
+}
+
+.header-inner {
+  max-width:1100px;
+  margin:0 auto;
+  padding: 32px 24px 28px;
+  display:flex;
+  align-items:center;
+  gap:28px;
+  position:relative;
+  z-index:2;
+}
+
+.logo-wrap {
+  width:90px; height:90px;
+  background: white;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  overflow:hidden;
+  flex-shrink:0;
+  border: 4px solid var(--gold);
+}
+.logo-wrap img { width:100%; height:100%; object-fit:cover; }
+.logo-placeholder {
+  font-size:36px;
+  font-family:'Amiri', serif;
+  color: var(--green-dark);
+  font-weight:700;
+  letter-spacing:-1px;
+}
+
+.header-text { flex:1; }
+.school-name {
+  font-family:'Amiri', serif;
+  font-size:2.2rem;
+  font-weight:700;
+  line-height:1.1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.school-sub {
+  font-size:1rem;
+  opacity:0.85;
+  margin-top:4px;
+  font-weight:300;
+}
+.school-info {
+  font-size:0.82rem;
+  opacity:0.75;
+  margin-top:6px;
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.school-info span { display:flex; align-items:center; gap:4px; }
+
+.header-badge {
+  background: var(--gold);
+  color: var(--dark);
+  padding: 8px 18px;
+  border-radius:50px;
+  font-size:0.82rem;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+/* ===== NAV TABS ===== */
+.nav-tabs {
+  background: var(--green-dark);
+  display:flex;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.nav-tab {
+  padding: 14px 28px;
+  color: rgba(255,255,255,0.7);
+  cursor:pointer;
+  font-size:0.9rem;
+  font-weight:600;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+  font-family:'Cairo',sans-serif;
+}
+.nav-tab:hover { color:white; background:rgba(255,255,255,0.05); }
+.nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ===== MAIN ===== */
+main { max-width:1100px; margin:0 auto; padding:32px 20px; }
+
+/* ===== SECTION TITLES ===== */
+.section-title {
+  font-family:'Amiri',serif;
+  font-size:1.5rem;
+  color: var(--green-dark);
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.section-title::after {
+  content:'';
+  flex:1;
+  height:2px;
+  background: linear-gradient(to right, var(--gold), transparent);
+}
+
+/* ===== SEARCH CARD ===== */
+.search-card {
+  background:white;
+  border-radius: var(--radius);
+  padding:32px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(26,110,60,0.1);
+  margin-bottom:28px;
+}
+
+.search-row {
+  display:flex;
+  gap:12px;
+  margin-bottom:16px;
+  flex-wrap:wrap;
+}
+
+.search-input {
+  flex:1;
+  min-width:200px;
+  padding:14px 20px;
+  border: 2px solid #d0e8d8;
+  border-radius:12px;
+  font-size:1rem;
+  font-family:'Cairo',sans-serif;
+  color: var(--dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f8fdf9;
+}
+.search-input:focus {
+  outline:none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(26,110,60,0.12);
+  background:white;
+}
+
+.btn {
+  padding:14px 28px;
+  border:none;
+  border-radius:12px;
+  font-size:0.95rem;
+  font-weight:700;
+  font-family:'Cairo',sans-serif;
+  cursor:pointer;
+  transition: all 0.2s;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.btn-green {
+  background: linear-gradient(135deg, var(--green), var(--green-light));
+  color:white;
+  box-shadow: 0 4px 12px rgba(26,110,60,0.3);
+}
+.btn-green:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(26,110,60,0.4); }
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: var(--dark);
+}
+.btn-gold:hover { transform:translateY(-2px); }
+.btn-red {
+  background: var(--red);
+  color:white;
+}
+.btn-blue {
+  background: var(--blue);
+  color:white;
+}
+
+/* ===== RESULT CARD ===== */
+.result-card {
+  background:white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  animation: slideIn 0.4s ease;
+  border: 1px solid rgba(26,110,60,0.12);
+}
+@keyframes slideIn {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.result-header {
+  padding:24px 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:16px;
+}
+.result-header.pass { background: linear-gradient(135deg, #e8f8ef, #d4f1e0); border-bottom:3px solid var(--green); }
+.result-header.fail { background: linear-gradient(135deg, #fdecea, #fad3cf); border-bottom:3px solid var(--red); }
+
+.student-name {
+  font-family:'Amiri',serif;
+  font-size:1.6rem;
+  color: var(--dark);
+}
+.student-meta { font-size:0.88rem; color: var(--gray); margin-top:4px; }
+
+.verdict-badge {
+  padding:10px 24px;
+  border-radius:50px;
+  font-size:1rem;
+  font-weight:800;
+  letter-spacing:1px;
+}
+.verdict-pass { background:var(--green); color:white; box-shadow:0 4px 12px rgba(26,110,60,0.4); }
+.verdict-fail { background:var(--red); color:white; box-shadow:0 4px 12px rgba(192,57,43,0.4); }
+
+.marks-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
+  gap:1px;
+  background:#eee;
+}
+.mark-item {
+  background:white;
+  padding:16px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.mark-subject { font-size:0.78rem; color:var(--gray); text-align:center; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.mark-score {
+  font-size:1.5rem;
+  font-weight:800;
+  color: var(--green-dark);
+}
+.mark-score.low { color:var(--red); }
+
+.result-footer {
+  padding:20px 28px;
+  background:#f8fdf9;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.total-score { font-size:1.1rem; font-weight:700; color:var(--green-dark); }
+.percent-bar { flex:1; min-width:200px; }
+.bar-bg { background:#e0ede5; border-radius:50px; height:10px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:50px; background: linear-gradient(90deg, var(--green-light), var(--green)); transition:width 1s ease; }
+.bar-fill.low { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.bar-label { font-size:0.82rem; color:var(--gray); margin-top:4px; text-align:right; }
+
+/* ===== ADMIN PANEL ===== */
+.admin-gate {
+  background:white;
+  border-radius:var(--radius);
+  padding:40px;
+  box-shadow:var(--shadow);
+  max-width:460px;
+  margin:0 auto;
+  text-align:center;
+}
+.admin-icon { font-size:3rem; margin-bottom:16px; }
+.admin-gate h2 { font-family:'Amiri',serif; font-size:1.5rem; color:var(--green-dark); margin-bottom:8px; }
+.admin-gate p { color:var(--gray); font-size:0.9rem; margin-bottom:24px; }
+
+.admin-panel {
+  background:white;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.admin-toolbar {
+  background: linear-gradient(135deg, var(--green-dark), var(--green));
+  padding:20px 28px;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.admin-toolbar h2 { font-family:'Amiri',serif; font-size:1.3rem; }
+
+.admin-actions {
+  padding:24px 28px;
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  border-bottom:1px solid #eee;
+}
+
+.import-zone {
+  border:2px dashed #b8dac4;
+  border-radius:12px;
+  padding:32px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+  margin:24px 28px;
+  background:#f8fdf9;
+}
+.import-zone:hover { border-color:var(--green); background:#f0f9f4; }
+.import-zone input { display:none; }
+.import-icon { font-size:2.5rem; margin-bottom:12px; }
+.import-zone h3 { color:var(--green-dark); font-size:1rem; margin-bottom:6px; }
+.import-zone p { color:var(--gray); font-size:0.85rem; }
+
+.data-table-wrap { padding:0 28px 28px; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+thead tr { background:var(--green-dark); color:white; }
+thead th { padding:12px 14px; text-align:right; font-weight:600; }
+tbody tr { border-bottom:1px solid #eef3ef; }
+tbody tr:hover { background:#f4fbf6; }
+tbody td { padding:11px 14px; }
+.td-pass { color:var(--green); font-weight:700; }
+.td-fail { color:var(--red); font-weight:700; }
+
+/* ===== STATS CARDS ===== */
+.stats-row {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(180px,1fr));
+  gap:16px;
+  margin-bottom:28px;
+}
+.stat-card {
+  background:white;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.06);
+  text-align:center;
+  border-top:4px solid var(--green);
+}
+.stat-card.gold { border-top-color:var(--gold); }
+.stat-card.red { border-top-color:var(--red); }
+.stat-card.blue { border-top-color:var(--blue); }
+.stat-num { font-size:2rem; font-weight:800; color:var(--green-dark); }
+.stat-card.gold .stat-num { color:#8a6f00; }
+.stat-card.red .stat-num { color:var(--red); }
+.stat-card.blue .stat-num { color:var(--blue); }
+.stat-label { font-size:0.82rem; color:var(--gray); margin-top:4px; }
+
+/* ===== MSG ===== */
+.msg {
+  padding:16px 20px;
+  border-radius:12px;
+  margin:16px 0;
+  font-size:0.92rem;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.msg-error { background:#fdecea; color:var(--red); border:1px solid #f5c6c2; }
+.msg-success { background:#e8f8ef; color:var(--green-dark); border:1px solid #a8dbb8; }
+.msg-info { background:#e8f0fb; color:var(--blue); border:1px solid #b8cef5; }
+
+/* ===== PAGE ===== */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ===== FOOTER ===== */
+footer {
+  background: var(--green-dark);
+  color:rgba(255,255,255,0.7);
+  text-align:center;
+  padding:20px;
+  font-size:0.82rem;
+  margin-top:48px;
+}
+footer strong { color: var(--gold); }
+
+/* ===== PRINT ===== */
+@media print {
+  header, .nav-tabs, .search-card, footer { display:none !important; }
+  .result-card { box-shadow:none; border:1px solid #ccc; }
+}
+
+@media (max-width:600px) {
+  .header-inner { flex-direction:column; text-align:center; }
+  .school-info { justify-content:center; }
+  .search-row { flex-direction:column; }
+  .marks-grid { grid-template-columns:repeat(2,1fr); }
+  .result-header { flex-direction:column; align-items:flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo-wrap">
+      <img src="logo.png" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="logo-placeholder" style="display:none">M</div>
+    </div>
+    <div class="header-text">
+      <div class="school-name">Margaago IDP School</div>
+      <div class="school-sub">Natiijada Imtixaanka Sanadlaha ah</div>
+      <div class="school-info">
+        <span>📍 Deegaanka Margaago, Mudug, Puntland</span>
+        <span>📞 +252 907 602 596</span>
+      </div>
+    </div>
+    <div class="header-badge">🎓 Portal Natiijada</div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('search')">🔍 Raadi Natiijada</div>
+    <div class="nav-tab" onclick="showPage('admin-gate')">⚙️ Admin</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== SEARCH PAGE ===== -->
+  <div class="page active" id="page-search">
+    <div class="search-card">
+      <div class="section-title">🔍 Raadi Natiijadaada</div>
+      <div class="search-row">
+        <input type="text" class="search-input" id="searchInput" placeholder="Geli ID-ga ama magacaaga..." onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn btn-green" onclick="doSearch()">🔍 Raadi</button>
+        <button class="btn btn-gold" onclick="clearSearch()">✖ Nadiifi</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--gray)">💡 Aad baad u xaqiijin kartaa natiijadaada adigoo geli ID-ga ama magacaaga oo dhan</div>
+    </div>
+
+    <div id="searchResult"></div>
+  </div>
+
+  <!-- ===== ADMIN GATE ===== -->
+  <div class="page" id="page-admin-gate">
+    <div class="admin-gate">
+      <div class="admin-icon">🔐</div>
+      <h2>Admin Access</h2>
+      <p>Geli password-ka si aad u gasho qaybta maamulka</p>
+      <input type="password" class="search-input" id="adminPass" placeholder="Password..." style="margin-bottom:16px;width:100%" onkeydown="if(event.key==='Enter')checkAdmin()">
+      <button class="btn btn-green" onclick="checkAdmin()" style="width:100%;justify-content:center">🔓 Gal Admin</button>
+      <div id="adminGateMsg"></div>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN PANEL ===== -->
+  <div class="page" id="page-admin">
+    <div class="admin-panel">
+      <div class="admin-toolbar">
+        <h2>⚙️ Maamulka Natiijada</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="exportData()">📥 Soo Daji CSV</button>
+          <button class="btn btn-red" onclick="clearAllData()">🗑️ Tir Dhammaan</button>
+          <button class="btn" style="background:rgba(255,255,255,0.2);color:white" onclick="logout()">🚪 Ka Bax</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div style="padding:24px 28px">
+        <div class="stats-row" id="statsRow">
+          <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Wadarta Ardayda</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="statPass">0</div><div class="stat-label">Ku Guulaystay</div></div>
+          <div class="stat-card red"><div class="stat-num" id="statFail">0</div><div class="stat-label">Ku Fashilmay</div></div>
+          <div class="stat-card blue"><div class="stat-num" id="statRate">0%</div><div class="stat-label">Boqolkiiba Guusha</div></div>
+        </div>
+      </div>
+
+      <!-- Import Zone -->
+      <div class="import-zone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="importFile(event)">
+        <div class="import-icon">📊</div>
+        <h3>Soo Geli Excel / CSV</h3>
+        <p>Cadayso ama jiid faylka halkan • .xlsx, .xls, .csv la taageero</p>
+        <p style="margin-top:8px;font-size:0.78rem;color:#aaa">Tiirarka loo baahdo: ID, Magac, Fasalka, Maadooyinka...</p>
+      </div>
+
+      <div id="importMsg"></div>
+
+      <!-- Format Guide -->
+      <div style="margin:0 28px 20px;padding:16px;background:#f8fdf9;border-radius:12px;border:1px solid #d0e8d8;font-size:0.83rem;color:var(--gray)">
+        <strong style="color:var(--green-dark)">📋 Qaabka Excel-ka:</strong>
+        ID | Magac | Fasalka | cilmibulsho | somali | xisaab | saynis | carabi | tarabiyo | english | ict
+      </div>
+
+      <!-- Table -->
+      <div class="data-table-wrap">
+        <div id="tableWrap"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <strong>Margaago IDP School</strong> &nbsp;|&nbsp; Deegaanka Margaago, Mudug, Puntland &nbsp;|&nbsp; 📞 +252 907 602 596<br>
+  <span style="font-size:0.75rem;opacity:0.6">© 2025 Dhammaan xuquuqaha way xafidan yihiin</span>
+</footer>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBFyrJXY3TrC_4adr1mdoteWIfho3oDlc8",
+  authDomain: "margaago-idp-shcool.firebaseapp.com",
+  projectId: "margaago-idp-shcool",
+  storageBucket: "margaago-idp-shcool.firebasestorage.app",
+  messagingSenderId: "780404119669",
+  appId: "1:780404119669:web:a7c4f0ce058966cc91803c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+window.__db = db;
+window.__fs = { collection, getDocs, setDoc, doc, deleteDoc, query, orderBy };
+
+// Load all students on start
+loadStudents();
+
+async function loadStudents() {
+  try {
+    const snap = await getDocs(collection(db, "students"));
+    const data = [];
+    snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+    window.__students = data;
+    renderTable();
+    updateStats();
+  } catch(e) {
+    window.__students = window.__students || [];
+    console.log('Firebase load:', e.message);
+  }
+}
+window.__loadStudents = loadStudents;
+
+window.__saveStudent = async function(s) {
+  await setDoc(doc(db, "students", String(s.id)), s);
+};
+window.__deleteStudent = async function(id) {
+  await deleteDoc(doc(db, "students", String(id)));
+};
+window.__clearAll = async function() {
+  const snap = await getDocs(collection(db, "students"));
+  const dels = snap.docs.map(d => deleteDoc(d.ref));
+  await Promise.all(dels);
+};
+</script>
+
+<script>
+window.__students = window.__students || [];
+
+// ===== SUBJECT CONFIG =====
+const SUBJECTS_78  = ['cilmibulsho','somali','xisaab','saynis','carabi','tarabiyo','english','ict'];
+const SUBJECTS_OTHER = ['cilmibulsho','somali','xisaab','saynis','carabi','tarabiyo','english'];
+const TOTAL_78 = 800; const PASS_78 = 400;
+const TOTAL_O  = 700; const PASS_O  = 350;
+
+function getSubjects(grade) {
+  const g = String(grade).trim();
+  return (g==='7'||g==='8'||g.toLowerCase()==='f7'||g.toLowerCase()==='f8')
+    ? { subjects: SUBJECTS_78, total: TOTAL_78, pass: PASS_78 }
+    : { subjects: SUBJECTS_OTHER, total: TOTAL_O, pass: PASS_O };
+}
+
+function calcResult(student) {
+  const { subjects, total, pass } = getSubjects(student.fasalka);
+  let sum = 0;
+  subjects.forEach(s => { sum += parseFloat(student[s]||0); });
+  return { sum, total, pass, passed: sum >= pass, percent: Math.round((sum/total)*100) };
+}
+
+// ===== PAGES =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  if(name==='admin') {
+    document.getElementById('page-admin').classList.add('active');
+    document.querySelectorAll('.nav-tab')[1].classList.add('active');
+    renderTable(); updateStats();
+  } else if(name==='admin-gate') {
+    document.getElementById('page-admin-gate').classList.add('active');
+    document.querySelectorAll('.nav-tab')[1].classList.add('active');
+  } else {
+    document.getElementById('page-search').classList.add('active');
+    document.querySelectorAll('.nav-tab')[0].classList.add('active');
+  }
+}
+window.showPage = showPage;
+
+// ===== ADMIN AUTH =====
+function checkAdmin() {
+  const pw = document.getElementById('adminPass').value;
+  const msg = document.getElementById('adminGateMsg');
+  if(pw === 'admin2024') {
+    document.getElementById('adminPass').value='';
+    msg.innerHTML='';
+    showPage('admin');
+  } else {
+    msg.innerHTML='<div class="msg msg-error">❌ Password-ka waa khalad. Isku day mar kale.</div>';
+  }
+}
+window.checkAdmin = checkAdmin;
+
+function logout() {
+  showPage('admin-gate');
+}
+window.logout = logout;
+
+// ===== SEARCH =====
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const container = document.getElementById('searchResult');
+  if(!q) { container.innerHTML='<div class="msg msg-info">⚠️ Fadlan geli ID-ga ama magacaaga</div>'; return; }
+
+  const found = window.__students.filter(s =>
+    String(s.id).toLowerCase().includes(q) ||
+    (s.magac||s.Magac||'').toLowerCase().includes(q)
+  );
+
+  if(!found.length) {
+    container.innerHTML='<div class="msg msg-error">❌ Lama helin ardayga. Hubi ID-ga ama magaca oo ku isku day.</div>';
+    return;
+  }
+
+  container.innerHTML = found.map(s => renderResult(s)).join('');
+}
+window.doSearch = doSearch;
+
+function clearSearch() {
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchResult').innerHTML='';
+}
+window.clearSearch = clearSearch;
+
+function renderResult(s) {
+  const name = s.magac||s.Magac||s.name||'—';
+  const grade = s.fasalka||s.Fasalka||'—';
+  const { subjects, total, pass } = getSubjects(grade);
+  const res = calcResult(s);
+
+  const marksHtml = subjects.map(sub => {
+    const score = parseFloat(s[sub]||s[sub.charAt(0).toUpperCase()+sub.slice(1)]||0);
+    const maxPer = 100;
+    return `<div class="mark-item">
+      <div class="mark-subject">${sub}</div>
+      <div class="mark-score ${score<(maxPer*0.4)?'low':''}">${score}</div>
+    </div>`;
+  }).join('');
+
+  const cls = res.passed?'pass':'fail';
+  const vClass = res.passed?'verdict-pass':'verdict-fail';
+  const vText = res.passed?'✅ GUULAYSATAY':'❌ KU FASHILMAY';
+
+  return `<div class="result-card" style="margin-bottom:20px">
+    <div class="result-header ${cls}">
+      <div>
+        <div class="student-name">${name}</div>
+        <div class="student-meta">🆔 ${s.id} &nbsp;|&nbsp; 🏫 Fasalka ${grade}</div>
+      </div>
+      <div class="verdict-badge ${vClass}">${vText}</div>
+    </div>
+    <div class="marks-grid">${marksHtml}</div>
+    <div class="result-footer">
+      <div class="total-score">Wadarta: ${res.sum} / ${total}</div>
+      <div class="percent-bar">
+        <div class="bar-bg"><div class="bar-fill ${!res.passed?'low':''}" style="width:${res.percent}%"></div></div>
+        <div class="bar-label">${res.percent}% &nbsp;(Xadka guusha: ${pass})</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== IMPORT =====
+function importFile(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const msg = document.getElementById('importMsg');
+  msg.innerHTML='<div class="msg msg-info">⏳ Waxaan soo galiyaa xogta...</div>';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      let rows = [];
+      if(file.name.endsWith('.csv')) {
+        rows = parseCSV(e.target.result);
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'binary'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      }
+
+      if(!rows.length) { msg.innerHTML='<div class="msg msg-error">❌ Faylku waa banaan yahay</div>'; return; }
+
+      // Normalize keys lowercase
+      rows = rows.map(r => {
+        const n={};
+        Object.keys(r).forEach(k => n[k.toLowerCase().trim()] = r[k]);
+        return n;
+      });
+
+      // Save to Firebase
+      let saved=0;
+      for(const row of rows) {
+        const id = String(row.id||row['id-ga']||row.studentid||Math.random()).trim();
+        if(!id) continue;
+        const student = {
+          id,
+          magac: row.magac||row.name||row['magaca']||'',
+          fasalka: String(row.fasalka||row.grade||row['fasal']||''),
+          cilmibulsho: parseFloat(row.cilmibulsho||0)||0,
+          somali: parseFloat(row.somali||0)||0,
+          xisaab: parseFloat(row.xisaab||0)||0,
+          saynis: parseFloat(row.saynis||0)||0,
+          carabi: parseFloat(row.carabi||0)||0,
+          tarabiyo: parseFloat(row.tarabiyo||0)||0,
+          english: parseFloat(row.english||0)||0,
+          ict: parseFloat(row.ict||0)||0,
+        };
+        window.__students = window.__students.filter(s=>String(s.id)!==id);
+        window.__students.push(student);
+        if(window.__saveStudent) { try{await window.__saveStudent(student);}catch(e){} }
+        saved++;
+      }
+
+      msg.innerHTML=`<div class="msg msg-success">✅ ${saved} arday ayaa si guul leh loo soo geliyay!</div>`;
+      renderTable(); updateStats();
+      event.target.value='';
+    } catch(err) {
+      msg.innerHTML=`<div class="msg msg-error">❌ Khalad: ${err.message}</div>`;
+    }
+  };
+  if(file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsBinaryString(file);
+}
+window.importFile = importFile;
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l=>l.trim());
+  if(!lines.length) return [];
+  const headers = lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/"/g,''));
+    return obj;
+  });
+}
+
+// ===== TABLE =====
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  if(!wrap) return;
+  const students = window.__students||[];
+  if(!students.length) {
+    wrap.innerHTML='<div class="msg msg-info" style="margin:0 0 24px">📭 Wali ardayda lama soo gelin. Isticmaal import-ka si aad xogta u geliso.</div>';
+    return;
+  }
+
+  const rows = students.map(s => {
+    const res = calcResult(s);
+    const name = s.magac||'—';
+    return `<tr>
+      <td>${s.id}</td>
+      <td><strong>${name}</strong></td>
+      <td>Fasalka ${s.fasalka||'—'}</td>
+      <td>${s.cilmibulsho||0}</td>
+      <td>${s.somali||0}</td>
+      <td>${s.xisaab||0}</td>
+      <td>${s.saynis||0}</td>
+      <td>${s.carabi||0}</td>
+      <td>${s.tarabiyo||0}</td>
+      <td>${s.english||0}</td>
+      <td>${s.ict||'—'}</td>
+      <td><strong>${res.sum}/${res.total}</strong></td>
+      <td class="${res.passed?'td-pass':'td-fail'}">${res.passed?'✅ GUULAYSATAY':'❌ FASHILMAY'}</td>
+      <td><button class="btn btn-red" style="padding:6px 12px;font-size:0.78rem" onclick="deleteStudent('${s.id}')">🗑️</button></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML=`<table>
+    <thead><tr>
+      <th>ID</th><th>Magac</th><th>Fasalka</th>
+      <th>Cilmi</th><th>Somali</th><th>Xisaab</th><th>Saynis</th>
+      <th>Carabi</th><th>Tarabiyo</th><th>English</th><th>ICT</th>
+      <th>Wadarta</th><th>Go'aanka</th><th>Del</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function updateStats() {
+  const students = window.__students||[];
+  const total = students.length;
+  const passed = students.filter(s=>calcResult(s).passed).length;
+  const failed = total-passed;
+  const rate = total?Math.round((passed/total)*100):0;
+  const t=document.getElementById('statTotal');
+  const p=document.getElementById('statPass');
+  const f=document.getElementById('statFail');
+  const r=document.getElementById('statRate');
+  if(t){t.textContent=total;p.textContent=passed;f.textContent=failed;r.textContent=rate+'%';}
+}
+
+async function deleteStudent(id) {
+  if(!confirm('Ma hubtaa inaad tirtirto ardaygan?')) return;
+  window.__students = window.__students.filter(s=>String(s.id)!==String(id));
+  if(window.__deleteStudent) { try{await window.__deleteStudent(id);}catch(e){} }
+  renderTable(); updateStats();
+}
+window.deleteStudent = deleteStudent;
+
+async function clearAllData() {
+  if(!confirm('Ma hubtaa inaad tirtirto DHAMMAAN ardayda? Tani waa mid aan la soo celin karin!')) return;
+  window.__students=[];
+  if(window.__clearAll) { try{await window.__clearAll();}catch(e){} }
+  renderTable(); updateStats();
+}
+window.clearAllData = clearAllData;
+
+function exportData() {
+  const students = window.__students||[];
+  if(!students.length) { alert('Xog ma jirto si loo soo dajin karo'); return; }
+  const headers = ['ID','Magac','Fasalka','cilmibulsho','somali','xisaab','saynis','carabi','tarabiyo','english','ict','Wadarta','Natiijada'];
+  const rows = students.map(s => {
+    const res = calcResult(s);
+    return [s.id,s.magac,s.fasalka,s.cilmibulsho,s.somali,s.xisaab,s.saynis,s.carabi,s.tarabiyo,s.english,s.ict,res.sum,res.passed?'GUULAYSATAY':'FASHILMAY'];
+  });
+  const csv = [headers,...rows].map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Natiijada_Margaago_IDP.csv';
+  a.click();
+}
+window.exportData = exportData;
+</script>
+</body>
+</html>
