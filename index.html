@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Margaago IDP School – Natiijada Imtixaanka</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── CSS Variables ─────────────────────────────────── */
+    :root {
+      --green:   #1a6b3c;
+      --green-l: #24914f;
+      --green-d: #0f4226;
+      --gold:    #d4a017;
+      --gold-l:  #f0c840;
+      --sky:     #e8f4ee;
+      --white:   #ffffff;
+      --dark:    #0d1f15;
+      --grey:    #5a7060;
+      --light:   #f2f8f4;
+      --shadow:  0 8px 32px rgba(26,107,60,.15);
+      --radius:  16px;
+    }
+
+    /* ─── Reset & Base ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Source Sans 3', sans-serif;
+      background: var(--light);
+      color: var(--dark);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── HEADER / HERO ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, var(--green-d) 0%, var(--green) 55%, var(--green-l) 100%);
+      color: var(--white);
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='40' cy='40' r='36' fill='none' stroke='rgba(255,255,255,.06)' stroke-width='2'/%3E%3Ccircle cx='40' cy='40' r='20' fill='none' stroke='rgba(255,255,255,.04)' stroke-width='2'/%3E%3C/svg%3E") repeat;
+      animation: bgScroll 30s linear infinite;
+    }
+    @keyframes bgScroll { to { background-position: 80px 80px; } }
+
+    .header-inner {
+      position: relative;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 36px 24px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .logo-ring {
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-l) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.6rem;
+      box-shadow: 0 0 0 6px rgba(212,160,23,.3), 0 8px 24px rgba(0,0,0,.3);
+      animation: popIn .6s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .school-name {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      animation: slideUp .5s .15s ease both;
+    }
+    .school-name span { color: var(--gold-l); }
+
+    .school-sub {
+      font-size: 1rem;
+      font-weight: 300;
+      opacity: .85;
+      letter-spacing: .5px;
+      animation: slideUp .5s .25s ease both;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .nav-pills {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+      margin-top: 8px;
+      animation: slideUp .5s .35s ease both;
+    }
+    .nav-pill {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      color: var(--white);
+      padding: 6px 18px;
+      border-radius: 50px;
+      font-size: .85rem;
+      cursor: pointer;
+      transition: background .25s, border-color .25s;
+      text-decoration: none;
+    }
+    .nav-pill:hover { background: rgba(255,255,255,.22); border-color: var(--gold); }
+    .nav-pill.active { background: var(--gold); border-color: var(--gold); color: var(--dark); font-weight: 700; }
+
+    /* ─── STATS BAR ─────────────────────────────────────── */
+    .stats-bar {
+      background: var(--green-d);
+      color: var(--white);
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 0;
+    }
+    .stat-item {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 14px 32px;
+      border-right: 1px solid rgba(255,255,255,.1);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--gold-l); }
+    .stat-lbl { font-size: .72rem; opacity: .75; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+    /* ─── SECTIONS ──────────────────────────────────────── */
+    .sections-nav {
+      display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+      padding: 28px 24px 0;
+    }
+    .tab-btn {
+      padding: 10px 24px;
+      border-radius: 50px;
+      border: 2px solid var(--green);
+      background: transparent;
+      color: var(--green);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: .95rem; font-weight: 600;
+      cursor: pointer;
+      transition: all .25s;
+    }
+    .tab-btn:hover { background: var(--green); color: #fff; }
+    .tab-btn.active { background: var(--green); color: #fff; box-shadow: 0 4px 16px rgba(26,107,60,.3); }
+
+    .section-content { display: none; }
+    .section-content.visible { display: block; }
+
+    /* ─── SEARCH SECTION ────────────────────────────────── */
+    .search-section {
+      max-width: 680px;
+      margin: 36px auto 0;
+      padding: 0 24px;
+      animation: slideUp .4s ease both;
+    }
+
+    .search-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px;
+      border-top: 4px solid var(--green);
+    }
+
+    .search-card h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.55rem;
+      color: var(--green-d);
+      margin-bottom: 6px;
+    }
+    .search-card p { color: var(--grey); font-size: .95rem; margin-bottom: 28px; }
+
+    .search-row {
+      display: flex; gap: 12px; align-items: stretch;
+    }
+    .search-input {
+      flex: 1;
+      border: 2px solid #d0e8d8;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 1.05rem;
+      font-family: 'Source Sans 3', sans-serif;
+      outline: none;
+      transition: border-color .25s, box-shadow .25s;
+      color: var(--dark);
+    }
+    .search-input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,107,60,.1);
+    }
+    .search-btn {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-l) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 26px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+      font-family: 'Source Sans 3', sans-serif;
+      white-space: nowrap;
+    }
+    .search-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,107,60,.35); }
+    .search-btn:active { transform: translateY(0); }
+
+    /* ─── RESULT CARD ───────────────────────────────────── */
+    .result-area { margin-top: 28px; }
+
+    .result-card {
+      background: linear-gradient(135deg, var(--green-d) 0%, var(--green) 100%);
+      border-radius: var(--radius);
+      color: var(--white);
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      animation: revealCard .4s cubic-bezier(.34,1.2,.64,1) both;
+    }
+    @keyframes revealCard { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: none; } }
+
+    .result-card::after {
+      content: '';
+      position: absolute; top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+    }
+
+    .result-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+    }
+    .result-name { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; }
+    .result-id { font-size: .85rem; opacity: .7; margin-top: 3px; }
+
+    .badge {
+      padding: 8px 22px;
+      border-radius: 50px;
+      font-size: 1rem; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0;
+    }
+    .badge.pass { background: var(--gold); color: var(--dark); }
+    .badge.fail { background: #c0392b; color: #fff; }
+
+    .result-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+    }
+    .result-field {
+      background: rgba(255,255,255,.1);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .result-field-lbl { font-size: .72rem; opacity: .7; text-transform: uppercase; letter-spacing: .8px; }
+    .result-field-val { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+
+    .score-bar-wrap { margin-top: 22px; }
+    .score-bar-lbl { font-size: .8rem; opacity: .75; margin-bottom: 6px; }
+    .score-bar-bg { background: rgba(255,255,255,.18); border-radius: 50px; height: 10px; overflow: hidden; }
+    .score-bar-fill {
+      height: 100%; border-radius: 50px;
+      background: linear-gradient(90deg, var(--gold) 0%, var(--gold-l) 100%);
+      transition: width 1s cubic-bezier(.25,.46,.45,.94);
+    }
+
+    /* ─── ERROR / EMPTY ─────────────────────────────────── */
+    .msg-box {
+      text-align: center; padding: 32px 20px;
+      border-radius: var(--radius);
+      background: #fff3f3;
+      border: 1.5px solid #fccaca;
+      color: #8b1a1a;
+      font-size: 1rem;
+      font-weight: 600;
+      animation: revealCard .3s ease both;
+    }
+    .msg-box.info { background: var(--sky); border-color: #9fcfb6; color: var(--green-d); }
+
+    /* ─── UPLOAD SECTION ────────────────────────────────── */
+    .upload-section {
+      max-width: 760px;
+      margin: 36px auto 0;
+      padding: 0 24px;
+    }
+    .upload-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px;
+      border-top: 4px solid var(--gold);
+    }
+    .upload-card h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: var(--green-d); margin-bottom: 6px;
+    }
+    .upload-card p { color: var(--grey); font-size: .92rem; margin-bottom: 24px; }
+
+    .drop-zone {
+      border: 2.5px dashed #9fcfb6;
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .25s, border-color .25s;
+      background: var(--sky);
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      background: #d4ede0; border-color: var(--green);
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .drop-icon { font-size: 2.8rem; }
+    .drop-text { font-size: 1rem; color: var(--green-d); font-weight: 600; margin-top: 10px; }
+    .drop-hint { font-size: .82rem; color: var(--grey); margin-top: 4px; }
+
+    .format-guide {
+      margin-top: 24px;
+      background: var(--light);
+      border-radius: 10px;
+      padding: 18px 22px;
+    }
+    .format-guide h3 { font-size: .95rem; color: var(--green-d); margin-bottom: 10px; font-weight: 700; }
+    .format-guide table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .format-guide th { background: var(--green); color: #fff; padding: 8px 12px; text-align: left; }
+    .format-guide td { padding: 8px 12px; border-bottom: 1px solid #dde8e2; }
+    .format-guide tr:last-child td { border: none; }
+
+    /* ─── DATA TABLE ────────────────────────────────────── */
+    .data-table-wrap {
+      margin-top: 28px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(26,107,60,.1);
+    }
+    .data-table-controls {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      background: var(--green-d);
+      color: #fff; gap: 12px; flex-wrap: wrap;
+    }
+    .data-table-controls strong { font-size: .95rem; }
+    .btn-clear {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      padding: 6px 16px; border-radius: 6px;
+      cursor: pointer; font-size: .85rem;
+      transition: background .2s;
+    }
+    .btn-clear:hover { background: rgba(255,255,255,.25); }
+
+    table.main-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    table.main-table thead th {
+      background: var(--green); color: #fff;
+      padding: 12px 16px; text-align: left; font-weight: 600;
+    }
+    table.main-table tbody tr { background: #fff; }
+    table.main-table tbody tr:nth-child(even) { background: var(--sky); }
+    table.main-table td { padding: 12px 16px; border-bottom: 1px solid #dde8e2; }
+    table.main-table tbody tr:last-child td { border: none; }
+
+    .tag { display: inline-block; padding: 3px 12px; border-radius: 50px; font-size: .78rem; font-weight: 700; }
+    .tag.pass { background: #e0f5e9; color: #1a6b3c; }
+    .tag.fail { background: #fde8e8; color: #c0392b; }
+
+    /* ─── ABOUT SECTION ─────────────────────────────────── */
+    .about-section {
+      max-width: 900px;
+      margin: 36px auto 0;
+      padding: 0 24px;
+    }
+    .about-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    @media (max-width: 640px) { .about-grid { grid-template-columns: 1fr; } }
+
+    .about-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 30px;
+      border-left: 4px solid var(--green);
+      transition: transform .2s;
+    }
+    .about-card:hover { transform: translateY(-4px); }
+    .about-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.15rem; color: var(--green-d); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .about-card p { color: var(--grey); line-height: 1.7; font-size: .92rem; }
+
+    .mission-banner {
+      background: linear-gradient(135deg, var(--green-d) 0%, var(--green) 100%);
+      border-radius: var(--radius);
+      padding: 36px;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .mission-banner h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem; margin-bottom: 10px; color: var(--gold-l);
+    }
+    .mission-banner p { opacity: .9; line-height: 1.75; max-width: 600px; margin: 0 auto; }
+
+    /* ─── FOOTER ────────────────────────────────────────── */
+    footer {
+      margin-top: 60px;
+      background: var(--green-d);
+      color: rgba(255,255,255,.7);
+      text-align: center;
+      padding: 24px;
+      font-size: .85rem;
+    }
+    footer strong { color: var(--gold-l); }
+
+    /* ─── LOADING SPINNER ───────────────────────────────── */
+    .spinner {
+      width: 36px; height: 36px;
+      border: 4px solid rgba(26,107,60,.15);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 24px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── RESPONSIVE ────────────────────────────────────── */
+    @media (max-width: 540px) {
+      .search-row { flex-direction: column; }
+      .search-btn { padding: 14px; }
+      .stat-item { padding: 12px 18px; }
+      .upload-card, .search-card { padding: 26px 20px; }
+      .result-card { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <div class="header-inner">
+    <div class="logo-ring">🏫</div>
+    <div class="school-name">Margaago <span>IDP School</span></div>
+    <div class="school-sub">Xarunta Waxbarashada – Deegaanka Margaago</div>
+    <nav class="nav-pills">
+      <a class="nav-pill active" href="#" onclick="showTab('search',this)">Natiijada</a>
+      <a class="nav-pill" href="#" onclick="showTab('upload',this)">Upload Natiijada</a>
+      <a class="nav-pill" href="#" onclick="showTab('about',this)">Ku Saabsan</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══════════ STATS BAR ══════════ -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-num" id="statTotal">–</span>
+    <span class="stat-lbl">Ardayda Guud</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" id="statPass">–</span>
+    <span class="stat-lbl">Guulaystay</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" id="statFail">–</span>
+    <span class="stat-lbl">Ku Guuldaraystay</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" id="statRate">–</span>
+    <span class="stat-lbl">Heerka Guusha</span>
+  </div>
+</div>
+
+<!-- ══════════ SEARCH TAB ══════════ -->
+<div id="tab-search" class="section-content visible">
+  <div class="search-section">
+    <div class="search-card">
+      <h2>🔍 Raadi Natiijadaada</h2>
+      <p>Gali lambarka ardayga (ID Number) si aad u aragto natiijadaada imtixaanka.</p>
+
+      <div class="search-row">
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="Tusaale: MG-2024-001"
+          onkeydown="if(event.key==='Enter') doSearch()"
+          autocomplete="off"
+        />
+        <button class="search-btn" onclick="doSearch()">Raadi →</button>
+      </div>
+
+      <div class="result-area" id="resultArea"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ UPLOAD TAB ══════════ -->
+<div id="tab-upload" class="section-content">
+  <div class="upload-section">
+    <div class="upload-card">
+      <h2>📂 Upload Natiijada Ardayda</h2>
+      <p>Macalinka kaliya ayaa isticmaali kara qaybtan. Upload faylka Excel ama CSV-ka natiijada ardayda.</p>
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])" />
+        <div class="drop-icon">📊</div>
+        <div class="drop-text">Riix halkan ama jiid faylka halkan</div>
+        <div class="drop-hint">CSV, XLS, XLSX – ugu badan 5MB</div>
+      </div>
+
+      <div class="format-guide">
+        <h3>📋 Qaabka Faylka (Required Columns)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Tiirka</th>
+              <th>Tusaale</th>
+              <th>Sharaxaad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>id</strong></td><td>MG-2024-001</td><td>Lambarka ardayga</td></tr>
+            <tr><td><strong>magac</strong></td><td>Faadumo Axmed</td><td>Magaca ardayga</td></tr>
+            <tr><td><strong>fasalka</strong></td><td>Fasalka 5aad</td><td>Fasalka ardayga</td></tr>
+            <tr><td><strong>dhibco</strong></td><td>78</td><td>Dhibcaha (0–100)</td></tr>
+            <tr><td><strong>guud</strong> <em>(ikhtiyaari)</em></td><td>100</td><td>Dhibcaha ugu badan</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="uploadResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ABOUT TAB ══════════ -->
+<div id="tab-about" class="section-content">
+  <div class="about-section">
+    <div class="mission-banner">
+      <h2>🌟 Himiladeenna</h2>
+      <p>Margaago IDP School waxay u heysaa ardayda qaxootiga ah iyo kuwa barakacay inay helaan waxbarasho tayo leh, awood u siinaysa mustaqbalka wanaagsan.</p>
+    </div>
+    <div class="about-grid">
+      <div class="about-card">
+        <h3>📚 Waxbarashada</h3>
+        <p>Dugtu waxay bixisaa waxbarasho aasaasiga ah iyo dugsiga koowaad ilaa fasalka 8-aad. Macallimiinta khibrada leh ayaa ardayda gudbiya.</p>
+      </div>
+      <div class="about-card">
+        <h3>📍 Goobta</h3>
+        <p>Dugsiga wuxuu ku yaalaa xarunta degmada Margaago, gobolka Bari, Puntland. Waxaan u furan nahay ardayda deegaanka.</p>
+      </div>
+      <div class="about-card">
+        <h3>🤝 Taageerada</h3>
+        <p>Dugsiga waxaa taageeraya hay'adaha caalamiga ah iyo bulshada deegaanka si looga helo waxbarasho lacag la'aanta ah.</p>
+      </div>
+      <div class="about-card">
+        <h3>📞 Xiriirka</h3>
+        <p>Haddaad xiriir la rabto dugsiga, soo booqo xafiiska maamulka ama noo soo dir fariin dhaqso ah.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <p>© 2024 <strong>Margaago IDP School</strong> – Dhammaan Xuquuqaha way Dhowrsanyihiin</p>
+  <p style="margin-top:4px;">Waxbarasho waa Xaq – Mustaqbalka ku Dhis Barashada</p>
+</footer>
+
+<script>
+  /* ─────────────────────────────────────────
+     DATA STORE (persistent via localStorage)
+  ───────────────────────────────────────── */
+  const STORAGE_KEY = 'margaago_students';
+
+  function loadStudents() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch(e) { return []; }
+  }
+
+  function saveStudents(arr) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    updateStats(arr);
+  }
+
+  let students = loadStudents();
+  updateStats(students);
+
+  /* ─────────────────────────────────────────
+     STATS
+  ───────────────────────────────────────── */
+  function updateStats(arr) {
+    if (!arr.length) {
+      ['statTotal','statPass','statFail','statRate'].forEach(id => {
+        document.getElementById(id).textContent = '–';
+      });
+      return;
+    }
+    const pass = arr.filter(s => isPass(s)).length;
+    const fail = arr.length - pass;
+    const rate = Math.round((pass / arr.length) * 100);
+    document.getElementById('statTotal').textContent = arr.length;
+    document.getElementById('statPass').textContent  = pass;
+    document.getElementById('statFail').textContent  = fail;
+    document.getElementById('statRate').textContent  = rate + '%';
+  }
+
+  function isPass(s) {
+    const total = s.guud ? Number(s.guud) : 100;
+    return Number(s.dhibco) >= total * 0.45;   // 45% threshold
+  }
+
+  /* ─────────────────────────────────────────
+     TAB NAVIGATION
+  ───────────────────────────────────────── */
+  function showTab(name, el) {
+    document.querySelectorAll('.section-content').forEach(d => d.classList.remove('visible'));
+    document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('visible');
+    if (el) el.classList.add('active');
+    return false;
+  }
+
+  /* ─────────────────────────────────────────
+     SEARCH
+  ───────────────────────────────────────── */
+  function doSearch() {
+    const raw = document.getElementById('searchInput').value.trim();
+    const area = document.getElementById('resultArea');
+
+    if (!raw) {
+      area.innerHTML = '<div class="msg-box info">⚠️ Fadlan gali lambarka ardayga ka hor intaanad raadin.</div>';
+      return;
+    }
+
+    area.innerHTML = '<div class="spinner"></div>';
+
+    setTimeout(() => {
+      const query = raw.toLowerCase();
+      const found = students.find(s =>
+        (s.id  || '').toLowerCase() === query ||
+        (s.id  || '').toLowerCase().includes(query)
+      );
+
+      if (!found) {
+        area.innerHTML = `<div class="msg-box">
+          ❌ Ma helin arday lambarkaas ah: <strong>${escHtml(raw)}</strong>.<br>
+          Hubi in lambarka saxda ah aad gashay, ama xiriir la macalinka.
+        </div>`;
+        return;
+      }
+
+      const pass    = isPass(found);
+      const total   = found.guud ? Number(found.guud) : 100;
+      const score   = Number(found.dhibco);
+      const pct     = Math.min(100, Math.round((score / total) * 100));
+      const barClr  = pass ? '#d4a017' : '#c0392b';
+
+      area.innerHTML = `
+        <div class="result-card">
+          <div class="result-header">
+            <div>
+              <div class="result-name">${escHtml(found.magac || 'Aan La Garanayn')}</div>
+              <div class="result-id">ID: ${escHtml(found.id)}</div>
+            </div>
+            <div class="badge ${pass ? 'pass' : 'fail'}">
+              ${pass ? '✅ Guulaysatay' : '❌ Ku Guuldaraystay'}
+            </div>
+          </div>
+
+          <div class="result-grid">
+            <div class="result-field">
+              <div class="result-field-lbl">Fasalka</div>
+              <div class="result-field-val">${escHtml(found.fasalka || '–')}</div>
+            </div>
+            <div class="result-field">
+              <div class="result-field-lbl">Dhibcaha</div>
+              <div class="result-field-val">${score} / ${total}</div>
+            </div>
+            <div class="result-field">
+              <div class="result-field-lbl">Boqolkiiba</div>
+              <div class="result-field-val">${pct}%</div>
+            </div>
+            ${found.imtixaan ? `<div class="result-field">
+              <div class="result-field-lbl">Imtixaanka</div>
+              <div class="result-field-val">${escHtml(found.imtixaan)}</div>
+            </div>` : ''}
+          </div>
+
+          <div class="score-bar-wrap">
+            <div class="score-bar-lbl">Heerka Natiijada</div>
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" id="sbar" style="width:0%;background:${barClr}"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const bar = document.getElementById('sbar');
+          if (bar) bar.style.width = pct + '%';
+        }, 80);
+      });
+
+    }, 350);
+  }
+
+  /* ─────────────────────────────────────────
+     FILE UPLOAD & CSV PARSING
+  ───────────────────────────────────────── */
+  // drag-and-drop styles
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    const res = document.getElementById('uploadResult');
+    res.innerHTML = '<div class="spinner"></div>';
+
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'csv') {
+      const reader = new FileReader();
+      reader.onload = e => processCSV(e.target.result, res);
+      reader.readAsText(file, 'UTF-8');
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      // Use SheetJS from CDN for Excel
+      loadSheetJS(() => {
+        const reader = new FileReader();
+        reader.onload = e => processExcel(e.target.result, res);
+        reader.readAsArrayBuffer(file);
+      });
+    } else {
+      res.innerHTML = '<div class="msg-box">❌ Nooca faylka waa khalad. Isticmaal CSV, XLS, ama XLSX.</div>';
+    }
+  }
+
+  function loadSheetJS(cb) {
+    if (window.XLSX) { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
+
+  function processExcel(buf, res) {
+    try {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      ingestRows(rows, res);
+    } catch(e) {
+      res.innerHTML = '<div class="msg-box">❌ Khalad ayaa dhacay markii la akhriyay Excel-ka. Hubi qaabka faylka.</div>';
+    }
+  }
+
+  function processCSV(text, res) {
+    try {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g,''));
+      const rows = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+        const obj = {};
+        headers.forEach((h,i) => obj[h] = vals[i] || '');
+        return obj;
+      });
+      ingestRows(rows, res);
+    } catch(e) {
+      res.innerHTML = '<div class="msg-box">❌ Khalad CSV. Hubi qaabka faylka.</div>';
+    }
+  }
+
+  function normalizeRow(row) {
+    // accept both English and Somali column names
+    const map = {
+      id:      ['id','lambarka','number'],
+      magac:   ['magac','name','magaca'],
+      fasalka: ['fasalka','fasal','grade','class'],
+      dhibco:  ['dhibco','dhibcaha','score','marks'],
+      guud:    ['guud','total','maxscore','max'],
+      imtixaan:['imtixaan','exam','subject','maado'],
+    };
+    const out = {};
+    const rowLower = {};
+    Object.keys(row).forEach(k => rowLower[k.toLowerCase()] = row[k]);
+
+    Object.entries(map).forEach(([field, aliases]) => {
+      for (const alias of aliases) {
+        if (rowLower[alias] !== undefined) { out[field] = String(rowLower[alias]).trim(); break; }
+      }
+    });
+    return out;
+  }
+
+  function ingestRows(rows, res) {
+    if (!rows.length) {
+      res.innerHTML = '<div class="msg-box">⚠️ Faylka waa madhan yahay.</div>';
+      return;
+    }
+
+    const parsed = rows.map(normalizeRow).filter(r => r.id && r.magac);
+
+    if (!parsed.length) {
+      res.innerHTML = `<div class="msg-box">❌ Ma helin safaf sax ah. Hubi inaad tiirarka sax ah leedahay: <strong>id, magac, fasalka, dhibco</strong>.</div>`;
+      return;
+    }
+
+    // Merge: update existing, add new
+    const existing = loadStudents();
+    const idMap = {};
+    existing.forEach(s => idMap[s.id] = s);
+    parsed.forEach(s => idMap[s.id] = s);
+    students = Object.values(idMap);
+    saveStudents(students);
+
+    renderTable(res, parsed);
+  }
+
+  function renderTable(res, rows) {
+    const html = `
+      <div class="data-table-wrap" style="animation:revealCard .4s ease both">
+        <div class="data-table-controls">
+          <strong>✅ ${rows.length} arday ayaa la geliyay guusha</strong>
+          <button class="btn-clear" onclick="clearData()">🗑️ Nadiifi Xogta</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="main-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Magaca</th>
+                <th>Fasalka</th>
+                <th>Dhibcaha</th>
+                <th>Boqolkiiba</th>
+                <th>Natiijada</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(s => {
+                const p = isPass(s);
+                const tot = s.guud ? Number(s.guud) : 100;
+                const pct = Math.min(100, Math.round((Number(s.dhibco)||0)/tot*100));
+                return `<tr>
+                  <td>${escHtml(s.id||'')}</td>
+                  <td><strong>${escHtml(s.magac||'')}</strong></td>
+                  <td>${escHtml(s.fasalka||'')}</td>
+                  <td>${escHtml(s.dhibco||'0')} / ${tot}</td>
+                  <td>${pct}%</td>
+                  <td><span class="tag ${p?'pass':'fail'}">${p?'✅ Guulaysatay':'❌ Ku Guuldaraystay'}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    res.innerHTML = html;
+  }
+
+  function clearData() {
+    if (!confirm('Ma hubtaa inaad tirtirto dhammaan xogta ardayda?')) return;
+    students = [];
+    saveStudents([]);
+    document.getElementById('uploadResult').innerHTML =
+      '<div class="msg-box info">✅ Xogta waa la nadiifiyay.</div>';
+  }
+
+  /* ─────────────────────────────────────────
+     UTILITIES
+  ───────────────────────────────────────── */
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
