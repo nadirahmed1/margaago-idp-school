@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Margaago IDP School – Natiijada Imtixaanka</title>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, getDocs, doc,
+      updateDoc, deleteDoc, query, where, orderBy,
+      writeBatch
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBFyrJXY3TrC_4adr1mdoteWIfho3oDlc8",
+      authDomain: "margaago-idp-shcool.firebaseapp.com",
+      projectId: "margaago-idp-shcool",
+      storageBucket: "margaago-idp-shcool.firebasestorage.app",
+      messagingSenderId: "780404119669",
+      appId: "1:780404119669:web:a7c4f0ce058966cc91803c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // ─── helpers ────────────────────────────────────────────────────────────
+    function normalFasal(fasal) {
+      if (!fasal) return "";
+      const f = String(fasal).trim().toUpperCase();
+      // Handle "7aad" → "F7", "8aad" → "F8", etc.
+      const m = f.match(/^(\d+)/);
+      if (m) return "F" + m[1];
+      return f;
+    }
+    function getMaxDhibco(fasal) {
+      const f = normalFasal(fasal);
+      return (f === "F7" || f === "F8") ? 800 : 700;
+    }
+    function getPassMark(fasal) {
+      const f = normalFasal(fasal);
+      return (f === "F7" || f === "F8") ? 400 : 350;
+    }
+    function calcGoan(dhibco, fasal) {
+      const pass = getPassMark(fasal);
+      const max  = getMaxDhibco(fasal);
+      const pct  = (dhibco / max) * 100;
+      if (dhibco < pass) return "FAIL";
+      if (pct >= 80)    return "A";
+      if (pct >= 70)    return "B";
+      if (pct >= 60)    return "C";
+      if (pct >= 50)    return "D";
+      return "E";
+    }
+
+    // ─── read all students ───────────────────────────────────────────────────
+    async function loadAll() {
+      const snap = await getDocs(collection(db, "ardayda"));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // ─── search ─────────────────────────────────────────────────────────────
+    async function searchStudent(term) {
+      const all = await loadAll();
+      const t = term.trim().toLowerCase();
+      const matches = all.filter(s =>
+        (s.arday_id  && s.arday_id.toLowerCase().includes(t)) ||
+        (s.magac     && s.magac.toLowerCase().includes(t))
+      );
+      // Dedupe: haddii xog isku mid ah (ID + magac isku mid) laba jeer ugu jirto
+      // Firestore (tusaale: si khalad ah ayaa laba jeer loo geliyay), hal ayaa la tusayaa.
+      const seen = new Map();
+      matches.forEach(s => {
+        const key = ((s.arday_id || "").toLowerCase().trim()) + "|" + ((s.magac || "").toLowerCase().trim());
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, s);
+        } else {
+          // Haddii mid ka mid ah leeyahay Term 2 xog, isaga ayaa la doortaa (ka waara)
+          const existingHasT2 = hasTerm2(existing);
+          const newHasT2 = hasTerm2(s);
+          if (newHasT2 && !existingHasT2) seen.set(key, s);
+        }
+      });
+      return Array.from(seen.values());
+    }
+
+    // ─── combine Term 1 + Term 2 ────────────────────────────────────────────
+    // Haddii Term 2 aan weli la gelin (null/undefined/""), waxaa la isticmaalaa Term 1 oo keliya.
+    // Haddii labaduba jiraan, waxaa lagu daraa oo 2-la qaybiyaa (celceliska).
+    const SUBJECT_KEYS = ["cilmibulsho","somali","xisaab","saynis","carabi","tarabiyo","english","ict"];
+
+    // Term 2 maaddooyinka gaarka ah (cilmibulsho2, somali2, ... ict2)
+    function hasTerm2Subjects(s) {
+      return SUBJECT_KEYS.some(k => {
+        const v = s[k + "2"];
+        return v !== null && v !== undefined && v !== "";
+      });
+    }
+    // Wadarta Term 2: haddii maaddooyinka gaarka ah la geliyay waa la isu darayaa,
+    // haddii kalese waxaa loo noqonayaa xogtii hore ee wadar-keliya (backward-compat).
+    function computeTerm2Total(s) {
+      if (hasTerm2Subjects(s)) {
+        return SUBJECT_KEYS.reduce((sum, k) => sum + (Number(s[k + "2"]) || 0), 0);
+      }
+      if (s.term2 !== null && s.term2 !== undefined && s.term2 !== "") {
+        return Number(s.term2) || 0;
+      }
+      return null;
+    }
+    function hasTerm2(s) {
+      return computeTerm2Total(s) !== null;
+    }
+    function combineTerms(s) {
+      // Backward-compat: xogta hore ee aan lahayn "term1" waxay isticmaali doontaa "dhibco" hore
+      const t1 = (s.term1 !== null && s.term1 !== undefined) ? Number(s.term1) : (Number(s.dhibco) || 0);
+      const t2 = computeTerm2Total(s);
+      if (t2 !== null) {
+        return Math.round((t1 + t2) / 2);
+      }
+      return t1;
+    }
+
+    // ─── get dhibco based on a specifically-chosen term ───────────────────────
+    // termChoice: "term1" | "term2" | "combined"
+    // Haddii la doorto term2 laakiin uusan weli jirin, waxaa dib loo noqdaa term1.
+    function getDhibcoForChoice(s, termChoice) {
+      const t1 = (s.term1 !== null && s.term1 !== undefined) ? Number(s.term1) : (Number(s.dhibco) || 0);
+      if (termChoice === "term2") {
+        const t2 = computeTerm2Total(s);
+        if (t2 !== null) return { dhibco: t2, usedFallback: false };
+        return { dhibco: t1, usedFallback: true }; // Term 2 weli lama gelin, waxaa loo noqday Term 1
+      }
+      if (termChoice === "term1") {
+        return { dhibco: t1, usedFallback: false };
+      }
+      // combined / default
+
+      return { dhibco: combineTerms(s), usedFallback: false };
+    }
+
+    // ─── render card ────────────────────────────────────────────────────────
+    // termChoice: "term1" | "term2" | "combined" (default "term1")
+    function renderCard(s, termChoice) {
+      termChoice = termChoice || "term1";
+      const max  = getMaxDhibco(s.fasal);
+      const pass = getPassMark(s.fasal);
+      const { dhibco, usedFallback } = getDhibcoForChoice(s, termChoice);
+      const goan  = calcGoan(dhibco, s.fasal);
+      const pct   = Math.round((dhibco / max) * 100);
+      const passed = dhibco >= pass;
+      const term2Exists = hasTerm2(s);
+      const term2Total = computeTerm2Total(s);
+      const termLabelMap = { term1: "Term 1", term2: "Term 2", combined: "Celceliska Guud" };
+      const resultLabel = termLabelMap[termChoice] || "Term 1";
+
+      const subjectMap = {
+        somali:   "Somali",    xisaab: "Xisaab",  saynis:  "Saynis",
+        carabi:   "Carabi",    tarabiyo: "Tarabiyo", english: "English",
+        ict:      "ICT",       cilmibulsho: "Cilmibulsho"
+      };
+      const subjectKeys = ["cilmibulsho","somali","xisaab","saynis","carabi","tarabiyo","english","ict"];
+      const term2SubjectsExist = hasTerm2Subjects(s);
+
+      // Dhis grid maadooyin hal term ah (t1 ama t2)
+      function buildSubjectsGrid(which) {
+        return `<div class="subjects-grid">${subjectKeys.map(k => {
+          const raw = which === "term2" ? s[k + "2"] : s[k];
+          const val = (raw !== null && raw !== undefined && raw !== "") ? raw : "–";
+          return `
+          <div class="sub-item">
+            <span class="sub-name">${subjectMap[k]}</span>
+            <span class="sub-score">${val}</span>
+          </div>`;
+        }).join("")}</div>`;
+      }
+
+      let subjectsBlockHTML;
+      if (termChoice === "term2") {
+        subjectsBlockHTML = term2SubjectsExist
+          ? buildSubjectsGrid("term2")
+          : buildSubjectsGrid("term1"); // fallback: Term 2 maadooyin lama gelin, waxaa la tusayaa Term 1
+      } else if (termChoice === "combined" && term2SubjectsExist) {
+        subjectsBlockHTML = `
+          <div class="term-block-label">📘 Term 1</div>
+          ${buildSubjectsGrid("term1")}
+          <div class="term-block-label" style="margin-top:8px">📗 Term 2</div>
+          ${buildSubjectsGrid("term2")}`;
+      } else {
+        subjectsBlockHTML = buildSubjectsGrid("term1");
+      }
+
+      return `
+      <div class="card ${passed ? "card-pass" : "card-fail"}">
+        <div class="card-header">
+          <div class="card-badge">${goan}</div>
+          <div class="card-title-block">
+            <h2 class="card-name">${s.magac || "—"}</h2>
+            <p class="card-meta">ID: <strong>${s.arday_id || "—"}</strong> &nbsp;|&nbsp; Fasal: <strong>${s.fasal || "—"}</strong></p>
+          </div>
+          <div class="card-status ${passed ? "status-pass" : "status-fail"}">${passed ? "GUUL" : "FAIL"}</div>
+        </div>
+        ${subjectsBlockHTML}
+        <div class="card-footer">
+          <div class="dhibco-bar-wrap">
+            <div class="dhibco-bar" style="width:${Math.min(pct,100)}%; background:${passed ? "#22c55e" : "#ef4444"}"></div>
+          </div>
+          <div class="dhibco-info">
+            <span>Term 1: <strong>${(s.term1 ?? s.dhibco ?? 0)}</strong></span>
+            <span>Term 2: <strong>${term2Exists ? term2Total : "Weli lama gelin"}</strong></span>
+            <span>Natiijada la tusayo (${resultLabel})${usedFallback ? " – Term 2 weli lama gelin, waa Term 1" : ""}: <strong>${dhibco}</strong> / ${max}</span>
+            <span>Goan: <strong>${goan}</strong></span>
+
+            <span>Xadka-gudbidda: <strong>${pass}</strong></span>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // ─── admin table row ─────────────────────────────────────────────────────
+    function renderAdminRow(s, idx) {
+      const max  = getMaxDhibco(s.fasal);
+      const pass = getPassMark(s.fasal);
+      const dhibco = combineTerms(s);
+      const goan = calcGoan(dhibco, s.fasal);
+      const passed = dhibco >= pass;
+      const term2Display = hasTerm2(s) ? computeTerm2Total(s) : "–";
+      return `
+      <tr data-id="${s.id}">
+        <td><input type="checkbox" class="row-check" value="${s.id}" onchange="updateBulkBar()"/></td>
+        <td>${idx+1}</td>
+        <td>${s.arday_id||""}</td>
+        <td>${s.magac||""}</td>
+        <td>${s.fasal||""}</td>
+        <td>${s.cilmibulsho||""}</td>
+        <td>${s.somali||""}</td>
+        <td>${s.xisaab||""}</td>
+        <td>${s.saynis||""}</td>
+        <td>${s.carabi||""}</td>
+        <td>${s.tarabiyo||""}</td>
+        <td>${s.english||""}</td>
+        <td>${s.ict||""}</td>
+        <td>${(s.term1 ?? s.dhibco ?? 0)}</td>
+        <td>${term2Display}</td>
+        <td>${dhibco}</td>
+        <td class="${passed?"text-pass":"text-fail"}">${goan}</td>
+        <td>
+          <button class="btn-edit" onclick="openEdit('${s.id}')">✏️</button>
+          <button class="btn-del"  onclick="delStudent('${s.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }
+
+    // ─── expose to window ────────────────────────────────────────────────────
+    window._db  = db;
+    window._col = () => collection(db, "ardayda");
+    window._addDoc     = addDoc;
+    window._getDocs    = getDocs;
+    window._doc        = (id) => doc(db, "ardayda", id);
+    window._docRef     = (id) => doc(db, "ardayda", id);
+    window._updateDoc  = updateDoc;
+    window._deleteDoc  = deleteDoc;
+    window._writeBatch = () => writeBatch(db);
+    window._doc_fn     = doc;
+    window._loadAll    = loadAll;
+    window._searchStudent = searchStudent;
+    window._renderCard = renderCard;
+    window._renderAdminRow = renderAdminRow;
+    window._calcGoan   = calcGoan;
+    window._getMaxDhibco = getMaxDhibco;
+    window._combineTerms = combineTerms;
+    window._getDhibcoForChoice = getDhibcoForChoice;
+    window._hasTerm2Subjects = hasTerm2Subjects;
+    window._computeTerm2Total = computeTerm2Total;
+    window._SUBJECT_KEYS = SUBJECT_KEYS;
+    window._hasTerm2    = hasTerm2;
+
+    document.dispatchEvent(new Event("firebase-ready"));
+  </script>
+
+  <style>
+    :root {
+      --green:  #16a34a;
+      --green2: #22c55e;
+      --gold:   #ca8a04;
+      --red:    #dc2626;
+      --bg:     #f0fdf4;
+      --card:   #ffffff;
+      --border: #bbf7d0;
+      --text:   #14532d;
+      --muted:  #6b7280;
+      --shadow: 0 4px 24px rgba(22,163,74,.12);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      direction: ltr;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #14532d 0%, #166534 60%, #15803d 100%);
+      color: #fff;
+      padding: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 24px;
+    }
+    .logo-wrap img {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid #86efac;
+      object-fit: cover;
+      background: #fff;
+    }
+    .logo-wrap .logo-fallback {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid #86efac;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+    }
+    .header-text { flex: 1; }
+    .header-text h1 {
+      font-family: 'Amiri', serif;
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      line-height: 1.2;
+    }
+    .header-text p { font-size: .82rem; color: #bbf7d0; margin-top: 3px; }
+    .header-actions { display: flex; gap: 10px; flex-direction: column; align-items: flex-end; }
+    .btn-admin {
+      background: var(--gold);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      transition: .2s;
+    }
+    .btn-admin:hover { background: #a16207; }
+
+    /* ── SEARCH ── */
+    .search-section {
+      max-width: 700px;
+      margin: 36px auto 0;
+      padding: 0 16px;
+      text-align: center;
+    }
+    .search-label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 12px;
+      display: block;
+    }
+    .search-bar {
+      display: flex;
+      gap: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--green2);
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 14px 20px;
+      font-size: 1.05rem;
+      border: none;
+      outline: none;
+      font-family: 'Tajawal', sans-serif;
+      color: var(--text);
+      background: #fff;
+    }
+    .search-bar button {
+      background: var(--green);
+      color: #fff;
+      border: none;
+      padding: 0 26px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 700;
+      transition: .2s;
+    }
+    .search-bar button:hover { background: #15803d; }
+    .search-hint {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* ── RESULTS ── */
+    .results-section {
+      max-width: 900px;
+      margin: 30px auto 60px;
+      padding: 0 16px;
+    }
+    .no-result {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px;
+      font-size: 1rem;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--border);
+      margin-bottom: 24px;
+      overflow: hidden;
+      animation: fadeIn .4s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+    .card-pass { border-color: #86efac; }
+    .card-fail { border-color: #fca5a5; }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid #e5e7eb;
+      background: linear-gradient(90deg, #f0fdf4 0%, #fff 100%);
+    }
+    .card-badge {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-family: 'Amiri', serif;
+      flex-shrink: 0;
+    }
+    .card-fail .card-badge { background: var(--red); }
+    .card-title-block { flex: 1; }
+    .card-name { font-size: 1.25rem; font-weight: 800; color: var(--text); }
+    .card-meta { font-size: .85rem; color: var(--muted); margin-top: 3px; }
+    .card-status {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 800;
+      font-size: .9rem;
+      letter-spacing: .5px;
+    }
+    .status-pass { background: #dcfce7; color: #16a34a; }
+    .status-fail { background: #fee2e2; color: #dc2626; }
+
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1px;
+      background: #e5e7eb;
+      border-top: 1px solid #e5e7eb;
+    }
+    .sub-item {
+      background: #fff;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sub-name { font-size: .82rem; color: var(--muted); }
+    .sub-score { font-weight: 800; color: var(--text); font-size: .95rem; }
+    .term-block-label {
+      font-size: .78rem;
+      font-weight: 800;
+      color: var(--green);
+      background: #f0fdf4;
+      padding: 6px 22px;
+      border-top: 1px solid #e5e7eb;
+      letter-spacing: .3px;
+    }
+
+    .card-footer {
+      padding: 14px 22px;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+    }
+    .dhibco-bar-wrap {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .dhibco-bar { height: 100%; border-radius: 4px; transition: width .6s ease; }
+    .dhibco-info {
+      display: flex;
+      gap: 20px;
+      font-size: .85rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .dhibco-info strong { color: var(--text); }
+
+    /* ── ADMIN MODAL ── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.active { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      width: min(95vw, 500px);
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      animation: fadeIn .3s ease;
+    }
+    .modal h2 { font-size: 1.3rem; font-weight: 800; color: var(--text); margin-bottom: 20px; }
+    .modal input[type=password], .modal input[type=text] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'Tajawal', sans-serif;
+      margin-bottom: 14px;
+      outline: none;
+      transition: .2s;
+    }
+    .modal input:focus { border-color: var(--green); }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+    .btn-primary {
+      background: var(--green);
+      color: #fff; border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      transition: .2s;
+    }
+    .btn-primary:hover { background: #15803d; }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151; border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: .95rem;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      transition: .2s;
+    }
+    .btn-secondary:hover { background: #e5e7eb; }
+    .err-msg { color: var(--red); font-size: .85rem; margin-top: -8px; margin-bottom: 10px; }
+
+    /* ── ADMIN PANEL ── */
+    #adminPanel {
+      display: none;
+      max-width: 1200px;
+      margin: 30px auto 60px;
+      padding: 0 16px;
+    }
+    #adminPanel.active { display: block; }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .admin-header h2 { font-size: 1.4rem; font-weight: 800; color: var(--text); }
+    .btn-add {
+      background: var(--green);
+      color: #fff; border: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+    }
+    .btn-logout {
+      background: #f3f4f6;
+      color: #374151; border: 1.5px solid #d1d5db;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: .9rem;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+    }
+    .table-wrap { overflow-x: auto; border-radius: 12px; box-shadow: var(--shadow); }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: .85rem; }
+    thead tr { background: var(--green); color: #fff; }
+    th, td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+    tbody tr:hover { background: #f0fdf4; }
+    .text-pass { color: var(--green); font-weight: 700; }
+    .text-fail { color: var(--red); font-weight: 700; }
+    .btn-edit { background: #fef9c3; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: .85rem; }
+    .btn-del  { background: #fee2e2; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: .85rem; margin-right: 4px; }
+    /* ── BULK DELETE BAR ── */
+    #bulkBar {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      background: #fff3cd;
+      border: 1.5px solid #fbbf24;
+      border-radius: 10px;
+      padding: 10px 18px;
+      margin-bottom: 12px;
+      font-weight: 700;
+      color: #92400e;
+      flex-wrap: wrap;
+    }
+    #bulkBar.active { display: flex; }
+    .btn-bulk-del {
+      background: var(--red);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+    }
+    .btn-bulk-del:hover { background: #b91c1c; }
+    .btn-bulk-cancel {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1.5px solid #d1d5db;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: .9rem;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+    }
+    .admin-filter { margin-bottom: 14px; }
+    .admin-filter input {
+      padding: 9px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-family: 'Tajawal', sans-serif;
+      font-size: .9rem;
+      width: min(300px, 100%);
+    }
+
+    /* ── FORM MODAL ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .form-grid label { font-size: .82rem; color: var(--muted); display: block; margin-bottom: 3px; }
+    .form-grid input, .form-grid select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-family: 'Tajawal', sans-serif;
+      font-size: .9rem;
+      outline: none;
+      transition: .2s;
+    }
+    .form-grid input:focus, .form-grid select:focus { border-color: var(--green); }
+    .form-scroll { max-height: 70vh; overflow-y: auto; padding-right: 4px; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #14532d;
+      color: #bbf7d0;
+      text-align: center;
+      padding: 22px 16px;
+      font-size: .85rem;
+      margin-top: 20px;
+    }
+    footer strong { color: #fff; }
+
+    /* ── EXCEL UPLOAD ── */
+    .upload-zone {
+      border: 2.5px dashed #86efac;
+      border-radius: 14px;
+      padding: 28px 20px;
+      text-align: center;
+      background: #f0fdf4;
+      cursor: pointer;
+      transition: .2s;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--green);
+      background: #dcfce7;
+    }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .upload-zone p { font-size: .9rem; color: var(--muted); }
+    .upload-zone strong { color: var(--green); }
+    .btn-upload {
+      background: #0ea5e9;
+      color: #fff; border: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      transition: .2s;
+    }
+    .btn-upload:hover { background: #0284c7; }
+    .progress-wrap {
+      display: none;
+      background: #e5e7eb;
+      border-radius: 8px;
+      height: 22px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--green2));
+      border-radius: 8px;
+      transition: width .3s ease;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: .78rem; font-weight: 700;
+    }
+    .upload-log {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 8px;
+      min-height: 20px;
+    }
+    .preview-table-wrap {
+      max-height: 220px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      margin: 12px 0;
+      display: none;
+    }
+    .preview-table { font-size: .78rem; width: 100%; border-collapse: collapse; }
+    .preview-table th { background: #14532d; color: #fff; padding: 6px 8px; white-space: nowrap; }
+    .preview-table td { padding: 5px 8px; border-bottom: 1px solid #f3f4f6; }
+    .preview-table tr:nth-child(even) td { background: #f9fafb; }
+    .upload-summary {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      margin: 8px 0 14px;
+      font-size: .85rem;
+    }
+    .sum-chip {
+      background: #dcfce7;
+      color: var(--green);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+    .sum-chip.red { background: #fee2e2; color: var(--red); }
+    .sum-chip.blue { background: #dbeafe; color: #1d4ed8; }
+
+    @media(max-width:600px) {
+      .header-text h1 { font-size: 1.3rem; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header>
+  <div class="header-inner">
+    <div class="logo-wrap">
+      <img src="logo.png" alt="Margaago IDP School Logo"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div class="logo-fallback" style="display:none">🏫</div>
+    </div>
+    <div class="header-text">
+      <h1>Margaago IDP School</h1>
+      <p>Deegaanka Margaago, Mudug, Puntland &nbsp;|&nbsp; 📞 +252 907 602 596</p>
+      <p style="margin-top:4px;font-size:.78rem;color:#86efac">Natiijada Imtixaanka Ardayda</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-admin" onclick="showAdminLogin()">🔐 Admin</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ SEARCH ═══════════════ -->
+<div class="search-section" id="publicSection">
+  <span class="search-label">🔍 Raadi Natiijadaada</span>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Geli ID ama Magacaaga..." autocomplete="off"/>
+    <button onclick="doSearch()">Raadi</button>
+  </div>
+  <div class="term-choice-wrap" style="margin-top:10px;display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap">
+    <label for="termChoiceSelect" style="font-size:.85rem;font-weight:700;color:var(--muted)">Muuji Natiijada:</label>
+    <select id="termChoiceSelect" onchange="doSearch()" style="padding:6px 10px;border-radius:8px;border:1.5px solid #d1d5db;font-weight:700">
+      <option value="term1" selected>Term 1</option>
+      <option value="term2">Term 2</option>
+      <option value="combined">Celceliska (Term1 + Term2)</option>
+    </select>
+  </div>
+  <p class="search-hint">Tusaale: ARD-001 ama Cabdi Faarax</p>
+</div>
+
+<div class="results-section" id="resultsSection"></div>
+
+<!-- ═══════════════ ADMIN PANEL ═══════════════ -->
+<div id="adminPanel">
+  <div class="admin-header">
+    <h2>⚙️ Maamuuska Ardayda</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-add" onclick="openAdd()">➕ Arday Cusub</button>
+      <button class="btn-upload" onclick="openOverlay('uploadOverlay')">📊 Excel Upload</button>
+      <button class="btn-logout" onclick="logoutAdmin()">🚪 Ka Bax</button>
+    </div>
+  </div>
+  <div class="admin-filter">
+    <input type="text" id="adminFilter" placeholder="Raadi ardayga..." oninput="filterAdminTable()"/>
+  </div>
+  <!-- BULK DELETE BAR -->
+  <div id="bulkBar">
+    <span id="bulkCount">0 arday oo la doortay</span>
+    <button class="btn-bulk-del" onclick="bulkDelete()">🗑️ Tirtir Kuwa La Doortay</button>
+    <button class="btn-bulk-cancel" onclick="clearSelection()">❌ Jooji</button>
+  </div>
+  <div class="table-wrap">
+    <table id="adminTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="checkAll" onclick="toggleCheckAll(this)" title="Dhammaan dooro"/></th><th>#</th><th>ID</th><th>Magac</th><th>Fasal</th>
+          <th>Cilmibulsho</th><th>Somali</th><th>Xisaab</th><th>Saynis</th>
+          <th>Carabi</th><th>Tarabiyo</th><th>English</th><th>ICT</th>
+          <th>Term 1</th><th>Term 2</th>
+          <th>Dhibco</th><th>Goan</th><th>Ficil</th>
+        </tr>
+      </thead>
+      <tbody id="adminBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <strong>Margaago IDP School</strong> &nbsp;|&nbsp;
+  Deegaanka Margaago, Mudug, Puntland &nbsp;|&nbsp;
+  📞 +252 907 602 596 &nbsp;|&nbsp;
+  © 2025 Dhammaan xuquuqda way xafidan yihiin.
+</footer>
+
+<!-- ══ ADMIN LOGIN MODAL ══ -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <h2>🔐 Admin Login</h2>
+    <input type="password" id="pwInput" placeholder="Geli Passwordka..." onkeydown="if(event.key==='Enter')checkPw()"/>
+    <p class="err-msg" id="pwErr"></p>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeOverlay('loginOverlay')">Jooji</button>
+      <button class="btn-primary" onclick="checkPw()">Gal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD / EDIT MODAL ══ -->
+<div class="overlay" id="formOverlay">
+  <div class="modal" style="width:min(95vw,650px)">
+    <h2 id="formTitle">➕ Arday Cusub Ku Dar</h2>
+    <div class="form-scroll">
+      <input type="hidden" id="editId"/>
+      <div class="form-grid">
+        <div>
+          <label>ID Ardayga</label>
+          <input type="text" id="f_id" placeholder="ARD-001"/>
+        </div>
+        <div>
+          <label>Magaca Ardayga</label>
+          <input type="text" id="f_magac" placeholder="Magaca buuxa"/>
+        </div>
+        <div>
+          <label>Fasal</label>
+          <select id="f_fasal">
+            <option>F1</option><option>F2</option><option>F3</option>
+            <option>F4</option><option>F5</option><option>F6</option>
+            <option>F7</option><option>F8</option>
+          </select>
+        </div>
+        <div>
+          <label>Cilmibulsho</label>
+          <input type="number" id="f_cilmibulsho" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Somali</label>
+          <input type="number" id="f_somali" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Xisaab</label>
+          <input type="number" id="f_xisaab" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Saynis</label>
+          <input type="number" id="f_saynis" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Carabi</label>
+          <input type="number" id="f_carabi" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Tarabiyo</label>
+          <input type="number" id="f_tarabiyo" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>English</label>
+          <input type="number" id="f_english" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>ICT</label>
+          <input type="number" id="f_ict" min="0" placeholder="0"/>
+        </div>
+      </div>
+      <div class="form-grid" style="border-top:1.5px dashed #d1d5db;padding-top:12px">
+        <div>
+          <label>Term 1 (Wadarta maaddooyinka)</label>
+          <input type="text" id="f_term1" disabled placeholder="Si otomaatig ah ayaa loo xisaabiyaa"/>
+        </div>
+      </div>
+
+      <div class="form-grid" style="border-top:1.5px dashed #d1d5db;padding-top:12px">
+        <div style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:var(--text)">
+            <input type="checkbox" id="f_term2_enabled" onchange="toggleTerm2Grid(this.checked)" style="width:auto"/>
+            Term 2 ma jiraa? (haddii weli aanu iman, ha calaamadin)
+          </label>
+        </div>
+      </div>
+
+      <div class="form-grid" id="term2SubjectsGrid" style="display:none;border-top:1.5px dashed #d1d5db;padding-top:12px">
+        <div>
+          <label>Cilmibulsho (Term 2)</label>
+          <input type="number" id="f_cilmibulsho2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Somali (Term 2)</label>
+          <input type="number" id="f_somali2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Xisaab (Term 2)</label>
+          <input type="number" id="f_xisaab2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Saynis (Term 2)</label>
+          <input type="number" id="f_saynis2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Carabi (Term 2)</label>
+          <input type="number" id="f_carabi2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Tarabiyo (Term 2)</label>
+          <input type="number" id="f_tarabiyo2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>English (Term 2)</label>
+          <input type="number" id="f_english2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>ICT (Term 2)</label>
+          <input type="number" id="f_ict2" min="0" placeholder="0"/>
+        </div>
+        <div>
+          <label>Term 2 (Wadarta maaddooyinka)</label>
+          <input type="text" id="f_term2" disabled placeholder="Si otomaatig ah ayaa loo xisaabiyaa"/>
+        </div>
+      </div>
+      <p id="formErr" class="err-msg"></p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeOverlay('formOverlay')">Jooji</button>
+      <button class="btn-primary" onclick="saveStudent()">💾 Keydi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── constants ───────────────────────────────────────────────────────────────
+const ADMIN_PW = "admin2024";
+const SUBJECTS = ["cilmibulsho","somali","xisaab","saynis","carabi","tarabiyo","english","ict"];
+let adminLoggedIn = false;
+let allAdminData = [];
+
+// ─── wait for firebase ───────────────────────────────────────────────────────
+document.addEventListener("firebase-ready", () => {
+  // Enter key on search
+  document.getElementById("searchInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") doSearch();
+  });
+});
+
+// ─── live Term 1 preview (wadarta maaddooyinka) ─────────────────────────────
+function updateTerm1Preview() {
+  let total = 0;
+  SUBJECTS.forEach(s => { total += Number(document.getElementById("f_"+s).value) || 0; });
+  document.getElementById("f_term1").value = total;
+}
+// ─── live Term 2 preview (wadarta maaddooyinka Term 2) ─────────────────────
+function updateTerm2Preview() {
+  let total = 0;
+  SUBJECTS.forEach(s => { total += Number(document.getElementById("f_"+s+"2").value) || 0; });
+  document.getElementById("f_term2").value = total;
+}
+// ─── show/hide Term 2 subjects grid ─────────────────────────────────────────
+function toggleTerm2Grid(checked) {
+  document.getElementById("term2SubjectsGrid").style.display = checked ? "grid" : "none";
+  if (!checked) {
+    SUBJECTS.forEach(s => { const el = document.getElementById("f_"+s+"2"); if (el) el.value = ""; });
+    document.getElementById("f_term2").value = "";
+  } else {
+    updateTerm2Preview();
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  SUBJECTS.forEach(s => {
+    const el = document.getElementById("f_"+s);
+    if (el) el.addEventListener("input", updateTerm1Preview);
+    const el2 = document.getElementById("f_"+s+"2");
+    if (el2) el2.addEventListener("input", updateTerm2Preview);
+  });
+});
+
+// ─── public search ───────────────────────────────────────────────────────────
+async function doSearch() {
+  const term = document.getElementById("searchInput").value.trim();
+  const res = document.getElementById("resultsSection");
+  const termChoiceEl = document.getElementById("termChoiceSelect");
+  const termChoice = termChoiceEl ? termChoiceEl.value : "term1";
+  if (!term) { res.innerHTML = '<p class="no-result">Magaca ama ID-ga geli.</p>'; return; }
+  res.innerHTML = '<p class="no-result">⏳ Waxaa la raadinayaa...</p>';
+  try {
+    const list = await window._searchStudent(term);
+    if (!list.length) {
+      res.innerHTML = '<p class="no-result">❌ Arday lama helin. Hubi magaca ama ID-ga.</p>';
+    } else {
+      res.innerHTML = list.map(s => window._renderCard(s, termChoice)).join("");
+    }
+  } catch(e) {
+    res.innerHTML = '<p class="no-result">⚠️ Khalad dhacay. Internet-ka hubi.</p>';
+  }
+}
+
+// ─── admin login ─────────────────────────────────────────────────────────────
+function showAdminLogin() {
+  if (adminLoggedIn) { toggleAdmin(true); return; }
+  document.getElementById("pwInput").value = "";
+  document.getElementById("pwErr").textContent = "";
+  openOverlay("loginOverlay");
+}
+function checkPw() {
+  const pw = document.getElementById("pwInput").value;
+  if (pw === ADMIN_PW) {
+    closeOverlay("loginOverlay");
+    adminLoggedIn = true;
+    toggleAdmin(true);
+    loadAdminData();
+  } else {
+    document.getElementById("pwErr").textContent = "❌ Passwordka waa khalad!";
+  }
+}
+function logoutAdmin() {
+  adminLoggedIn = false;
+  toggleAdmin(false);
+}
+function toggleAdmin(show) {
+  document.getElementById("adminPanel").classList.toggle("active", show);
+  document.getElementById("publicSection").style.display = show ? "none" : "block";
+  document.getElementById("resultsSection").style.display = show ? "none" : "block";
+}
+
+// ─── load admin table ────────────────────────────────────────────────────────
+async function loadAdminData() {
+  document.getElementById("adminBody").innerHTML = "<tr><td colspan='18' style='padding:20px;color:#6b7280'>⏳ Waxaa la soo dejinayaa...</td></tr>";
+  allAdminData = await window._loadAll();
+  allAdminData.sort((a,b) => (a.arday_id||"").localeCompare(b.arday_id||""));
+  renderAdminTable(allAdminData);
+}
+function renderAdminTable(data) {
+  document.getElementById("adminBody").innerHTML = data.map((s,i) => window._renderAdminRow(s,i)).join("") || "<tr><td colspan='18'>Xog ma jirto</td></tr>";
+  clearSelection();
+}
+function filterAdminTable() {
+  const t = document.getElementById("adminFilter").value.toLowerCase();
+  renderAdminTable(allAdminData.filter(s =>
+    (s.arday_id||"").toLowerCase().includes(t) ||
+    (s.magac||"").toLowerCase().includes(t) ||
+    (s.fasal||"").toLowerCase().includes(t)
+  ));
+}
+
+// ─── add / edit ──────────────────────────────────────────────────────────────
+function openAdd() {
+  document.getElementById("formTitle").textContent = "➕ Arday Cusub Ku Dar";
+  document.getElementById("editId").value = "";
+  document.getElementById("f_id").value = "";
+  document.getElementById("f_magac").value = "";
+  document.getElementById("f_fasal").value = "F1";
+  SUBJECTS.forEach(s => { const el = document.getElementById("f_"+s); if(el) el.value=""; });
+  document.getElementById("f_term1").value = "";
+  document.getElementById("f_term2_enabled").checked = false;
+  toggleTerm2Grid(false);
+  document.getElementById("formErr").textContent = "";
+  openOverlay("formOverlay");
+}
+window.openEdit = async function(id) {
+  const s = allAdminData.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById("formTitle").textContent = "✏️ Wax Ka Badal";
+  document.getElementById("editId").value = id;
+  document.getElementById("f_id").value = s.arday_id || "";
+  document.getElementById("f_magac").value = s.magac || "";
+  document.getElementById("f_fasal").value = s.fasal || "F1";
+  SUBJECTS.forEach(sub => {
+    const el = document.getElementById("f_"+sub);
+    if (el) el.value = s[sub] ?? "";
+  });
+  document.getElementById("f_term1").value = (s.term1 ?? s.dhibco ?? 0);
+
+  const term2Enabled = window._hasTerm2Subjects(s) || (s.term2 !== null && s.term2 !== undefined && s.term2 !== "");
+  document.getElementById("f_term2_enabled").checked = term2Enabled;
+  toggleTerm2Grid(term2Enabled);
+  if (term2Enabled) {
+    SUBJECTS.forEach(sub => {
+      const el = document.getElementById("f_"+sub+"2");
+      if (el) el.value = s[sub+"2"] ?? "";
+    });
+    if (window._hasTerm2Subjects(s)) {
+      updateTerm2Preview();
+    } else {
+      // Xog hore oo lahayd wadar-keliya (aan maaddo kala saaran lahayn)
+      document.getElementById("f_term2").value = s.term2 ?? "";
+    }
+  }
+  document.getElementById("formErr").textContent = "";
+  openOverlay("formOverlay");
+};
+
+async function saveStudent() {
+  const id_val = document.getElementById("f_id").value.trim();
+  const magac  = document.getElementById("f_magac").value.trim();
+  const fasal  = document.getElementById("f_fasal").value;
+  if (!id_val || !magac) {
+    document.getElementById("formErr").textContent = "ID iyo Magaca waa waajib!";
+    return;
+  }
+
+  let editId = document.getElementById("editId").value;
+
+  // Haddii "Arday Cusub Ku Dar" la isticmaalay (editId ma jiro) laakiin ID-gan la
+  // geliyay uu horey ugu jiro xog kale (arday horey loo diwaan geliyay), ma aha
+  // arday cusub — waa isla ardaygii, ee waa in xogtiisa la isku xirraa (la merge-gareeyaa)
+  // halkii nuqul kale (duplicate) laga abuuri lahaa.
+  let existing = editId ? allAdminData.find(x => x.id === editId) : null;
+  if (!editId) {
+    const dupMatch = allAdminData.find(x => (x.arday_id || "").trim().toLowerCase() === id_val.toLowerCase());
+    if (dupMatch) {
+      existing = dupMatch;
+      editId = dupMatch.id; // isticmaal diiwaankii hore, ha la abuurin nuqul cusub
+      document.getElementById("formErr").style.color = "";
+      document.getElementById("formErr").textContent = "ℹ️ ID-gan waa arday horey loo diwaan geliyay — xogtii hore waa lala xidhi doonaa.";
+    }
+  }
+
+  const data = { arday_id: id_val, magac, fasal };
+  let term1 = 0;
+  SUBJECTS.forEach(s => {
+    const raw = document.getElementById("f_"+s).value.trim();
+    let v;
+    if (raw !== "") {
+      v = Number(raw) || 0;
+    } else if (existing && existing[s] !== undefined && existing[s] !== null && existing[s] !== "") {
+      // Goobta banaan — ka qaad qiimihii hore ee ardaygan si aan Term 1-kii hore loo lumin
+      v = Number(existing[s]) || 0;
+    } else {
+      v = 0;
+    }
+    data[s] = v;
+    term1 += v;
+  });
+  data.term1 = term1;
+
+  const term2Enabled = document.getElementById("f_term2_enabled").checked;
+  if (!term2Enabled) {
+    // Term 2 aan la doorin — nadiifi dhammaan xogta Term 2
+    data.term2 = null;
+    SUBJECTS.forEach(s => { data[s+"2"] = null; });
+  } else {
+    let term2 = 0, anyEntered = false;
+    SUBJECTS.forEach(s => {
+      const raw = document.getElementById("f_"+s+"2").value.trim();
+      let v;
+      if (raw !== "") {
+        anyEntered = true;
+        v = Number(raw) || 0;
+      } else if (existing && existing[s+"2"] !== undefined && existing[s+"2"] !== null && existing[s+"2"] !== "") {
+        v = Number(existing[s+"2"]) || 0;
+      } else {
+        v = 0;
+      }
+      data[s+"2"] = v;
+      term2 += v;
+    });
+    if (anyEntered || (existing && window._hasTerm2Subjects(existing))) {
+      data.term2 = term2;
+    } else if (existing && existing.term2 !== null && existing.term2 !== undefined && existing.term2 !== "") {
+      // Checkbox la doortay laakiin maaddo lama gelin — sii wado xogtii hore ee jirtay
+      data.term2 = existing.term2;
+    } else {
+      data.term2 = null;
+    }
+  }
+
+  const total = window._combineTerms(data); // Term1 kaliya haddii Term2 aanu jirin, haddii kalese celceliska labada
+  data.dhibco = total;
+  data.goan   = window._calcGoan(total, fasal);
+
+  try {
+    if (editId) {
+      await window._updateDoc(window._doc(editId), data);
+    } else {
+      await window._addDoc(window._col(), data);
+    }
+    closeOverlay("formOverlay");
+    loadAdminData();
+  } catch(e) {
+    document.getElementById("formErr").style.color = "";
+    document.getElementById("formErr").textContent = "⚠️ Khalad: " + e.message;
+  }
+}
+
+window.delStudent = async function(id) {
+  if (!confirm("Ma hubtaa inaad tirtirto ardaygan?")) return;
+  await window._deleteDoc(window._doc(id));
+  loadAdminData();
+};
+
+// ─── EXCEL / CSV UPLOAD ──────────────────────────────────────────────────────
+let parsedRows = [];
+let firebaseIsReady = false;
+document.addEventListener("firebase-ready", function() { firebaseIsReady = true; });
+
+// COL_ALIASES as var to avoid temporal dead zone issues
+var COL_ALIASES = {
+  arday_id: ["id","arday_id","ardayid","student_id","studentid","no","number","#"],
+  magac:    ["magac","name","magaca","ardayga","student","full_name","fullname"],
+  fasal:    ["fasal","class","grade","fasalka","level"],
+  cilmibulsho: ["cilmibulsho","social","socialstudies","civics"],
+  somali:   ["somali","af_somali","afsomali","af somali","somali lang"],
+  xisaab:   ["xisaab","math","maths","mathematics"],
+  saynis:   ["saynis","science","sciences"],
+  carabi:   ["carabi","arabic","arab","af_carabi"],
+  tarabiyo: ["tarabiyo","tarbiye","tarbiya","pe","religious","diinta"],
+  english:  ["english","english lang","eng","af_english"],
+  ict:      ["ict","computer","computing","technology","it"],
+  cilmibulsho2: ["cilmibulsho2","cilmibulsho_2","cilmibulsho term2","social2","socialstudies2","civics2"],
+  somali2:      ["somali2","somali_2","somali term2","af_somali2","afsomali2"],
+  xisaab2:      ["xisaab2","xisaab_2","xisaab term2","math2","maths2"],
+  saynis2:      ["saynis2","saynis_2","saynis term2","science2"],
+  carabi2:      ["carabi2","carabi_2","carabi term2","arabic2"],
+  tarabiyo2:    ["tarabiyo2","tarabiyo_2","tarabiyo term2","tarbiye2","pe2"],
+  english2:     ["english2","english_2","english term2","eng2"],
+  ict2:         ["ict2","ict_2","ict term2","computer2"],
+  term2:    ["term2","term_2","term 2","t2","imtixaanka2","imtixaanka_2","semester2"]
+};
+
+// Drag-and-drop — init after DOM ready
+document.addEventListener("DOMContentLoaded", function() {
+  var uz = document.getElementById("uploadZone");
+  if (!uz) return;
+  uz.addEventListener("dragover", function(e) { e.preventDefault(); uz.classList.add("drag-over"); });
+  uz.addEventListener("dragleave", function() { uz.classList.remove("drag-over"); });
+  uz.addEventListener("drop", function(e) {
+    e.preventDefault();
+    uz.classList.remove("drag-over");
+    var file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  });
+});
+
+function handleFileSelect(file) {
+  if (!file) return;
+  if (!firebaseIsReady || typeof window._calcGoan !== "function") {
+    setLog("❌ Khalad: Nidaamka weli ma diyaar galin. Bog-ka dib u cusboonaysii oo isku day.");
+    return;
+  }
+  parsedRows = [];
+  setLog("⏳ File-ka waxaa la akhriyaa...");
+  document.getElementById("uploadSummary").style.display = "none";
+  document.getElementById("previewWrap").style.display = "none";
+  document.getElementById("btnConfirmUpload").style.display = "none";
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!json.length) { setLog("⚠️ File-ka waa madhan yahay ama format-kiisu khaldan yahay."); return; }
+      processRows(json);
+    } catch(err) {
+      setLog("❌ Khalad: " + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function resolveCol(headers, fieldName) {
+  if (!COL_ALIASES) return null;
+  const aliases = COL_ALIASES[fieldName] || [fieldName];
+  for (const h of headers) {
+    const hn = h.toLowerCase().replace(/[\s_\-]/g, "");
+    for (const a of aliases) {
+      if (hn === a.replace(/[\s_\-]/g, "")) return h;
+    }
+  }
+  return null;
+}
+
+async function processRows(json) {
+  // Filter out null/undefined column headers (extra empty columns from Excel)
+  const headers = Object.keys(json[0]).filter(h => h && h !== "null" && h !== "undefined");
+  // Build column map
+  const colMap = {};
+  for (const field of Object.keys(COL_ALIASES)) {
+    colMap[field] = resolveCol(headers, field);
+  }
+
+  const optionalFields = ["arday_id","term2","cilmibulsho2","somali2","xisaab2","saynis2","carabi2","tarabiyo2","english2","ict2"];
+  const missing = Object.keys(COL_ALIASES).filter(f => !colMap[f] && !optionalFields.includes(f));
+  if (!colMap.arday_id && !colMap.magac) {
+    setLog("❌ Column-yada ID ama Magac lama helin. Hubi magacyada Excel-ka.");
+    return;
+  }
+
+  // ─── Soo deji xogtii hore ee Firebase, si ardayda horey loo diwaan geliyay
+  // (tusaale: kuwa Term 1 lagu geliyay) aan Term 2 loogu daray kuwa jira,
+  // halkii uu isaga dul qori lahaa oo Term 1-kii lumin lahaa ───
+  setLog("⏳ Xogtii hore ee ardayda ayaa la hubinayaa...");
+  let existingMap = {};
+  try {
+    const existing = await window._loadAll();
+    existing.forEach(s => {
+      if (s.arday_id) existingMap[String(s.arday_id).trim().toLowerCase()] = s;
+    });
+  } catch (err) {
+    // Haddii ay khalad dhacdo, sii wad upload-ka iyada oo aan xogtii hore la helin
+  }
+
+  const subjectFields = ["cilmibulsho","somali","xisaab","saynis","carabi","tarabiyo","english","ict"];
+
+  parsedRows = json.map((row, i) => {
+    const get = (f) => colMap[f] ? row[colMap[f]] : "";
+    const arday_id = String(get("arday_id") || `ARD-${String(i+1).padStart(3,"0")}`).trim();
+    const existing = existingMap[arday_id.toLowerCase()] || null;
+
+    // Magac iyo fasal: haddii file-ku uusan wax kaga jirin, isticmaal xogtii hore
+    const magac = String(get("magac") || (existing && existing.magac) || "").trim();
+    // Normalize fasal: "7aad" → "F7", "8aad" → "F8", etc.
+    const fasalRawSrc = String(get("fasal") || "").trim() || (existing && existing.fasal) || "F1";
+    const fasalRaw = String(fasalRawSrc).trim();
+    const fasalNum = fasalRaw.match(/^(\d+)/);
+    const fasal = fasalNum ? "F" + fasalNum[1] : fasalRaw.toUpperCase();
+
+    // Term 1 maaddooyinka: haddii column-ka maaddadaas file-ka ku jiro, isticmaal
+    // qiimihiisa; haddii kalese (column-ka lama helin) ka qaad xogtii hore ee ardaygan
+    // si aan Term 1-kii hore loo lumin marka Term 2 kaliya la soo geliyo.
+    const scores = {};
+    let term1 = 0;
+    subjectFields.forEach(s => {
+      let v;
+      if (colMap[s]) {
+        v = Number(get(s)) || 0;
+      } else if (existing && existing[s] !== undefined && existing[s] !== null && existing[s] !== "") {
+        v = Number(existing[s]) || 0;
+      } else {
+        v = 0;
+      }
+      scores[s] = v;
+      term1 += v;
+    });
+
+    // Term 2 maaddooyinka gaarka ah — haddii column-yadaas jiraan, waa la isu darayaa
+    const term2SubjectColsExist = subjectFields.some(s => colMap[s+"2"]);
+    let term2 = null;
+    if (term2SubjectColsExist) {
+      let t2sum = 0;
+      subjectFields.forEach(s => {
+        let v;
+        if (colMap[s+"2"]) {
+          v = Number(get(s+"2")) || 0;
+        } else if (existing && existing[s+"2"] !== undefined && existing[s+"2"] !== null && existing[s+"2"] !== "") {
+          v = Number(existing[s+"2"]) || 0;
+        } else {
+          v = 0;
+        }
+        scores[s+"2"] = v;
+        t2sum += v;
+      });
+      term2 = t2sum;
+    } else if (colMap.term2) {
+      // Column wadar-keliya ah (term2) — haddii uusan jirin ama madhan yahay, ka qaad xogtii hore
+      const term2Raw = String(get("term2")).trim();
+      if (term2Raw === "") {
+        term2 = existing ? window._computeTerm2Total(existing) : null;
+      } else {
+        term2 = Number(term2Raw) || 0;
+      }
+    } else if (existing) {
+      // File-ku wax Term 2 ah kama jiro gabi ahaanba — ilaali xogtii Term 2 ee hore
+      // (haddii ardaygan horey Term 2 loogu geliyay) si aanay u lumin.
+      subjectFields.forEach(s => {
+        if (existing[s+"2"] !== undefined && existing[s+"2"] !== null && existing[s+"2"] !== "") {
+          scores[s+"2"] = existing[s+"2"];
+        }
+      });
+      term2 = window._computeTerm2Total(existing);
+    }
+
+    const dhibco = term2 !== null ? Math.round((term1 + term2) / 2) : term1;
+    const goan = window._calcGoan(dhibco, fasal);
+    return {
+      arday_id,
+      magac,
+      fasal,
+      ...scores,
+      term1,
+      term2,
+      dhibco,
+      goan
+    };
+  }).filter(r => r.magac && r.magac.length > 0); // skip blank rows
+
+  if (!parsedRows.length) { setLog("⚠️ Ardayda lama helin. Hubi Excel-ka."); return; }
+
+  // Summary
+  const pass = parsedRows.filter(r => r.goan !== "FAIL").length;
+  const fail = parsedRows.length - pass;
+  document.getElementById("uploadSummary").style.display = "flex";
+  document.getElementById("uploadSummary").innerHTML = `
+    <span class="sum-chip blue">📋 Wadarta: ${parsedRows.length}</span>
+    <span class="sum-chip">✅ Guul: ${pass}</span>
+    <span class="sum-chip red">❌ FAIL: ${fail}</span>
+    ${missing.length ? `<span class="sum-chip red" title="${missing.join(', ')}">⚠️ ${missing.length} column aan la helin</span>` : ""}
+  `;
+
+  // Preview (first 8 rows)
+  const preview = parsedRows.slice(0, 8);
+  const cols = ["arday_id","magac","fasal","cilmibulsho","somali","xisaab","saynis","carabi","tarabiyo","english","ict","term1","term2","dhibco","goan"];
+  const colNames = ["ID","Magac","Fasal","Cilmibulsho","Somali","Xisaab","Saynis","Carabi","Tarabiyo","English","ICT","Term 1","Term 2","Dhibco","Goan"];
+  document.getElementById("previewTable").innerHTML =
+    `<thead><tr>${colNames.map(c=>`<th>${c}</th>`).join("")}</tr></thead>` +
+    `<tbody>${preview.map(r => `<tr>${cols.map(c=>`<td>${r[c]??""}</td>`).join("")}</tr>`).join("")}</tbody>`;
+  document.getElementById("previewWrap").style.display = "block";
+
+  setLog(`✅ ${parsedRows.length} arday oo diyaar ah. Haddaad rabtid Firebase ku geli, riix badhanka hoose.`);
+  document.getElementById("btnConfirmUpload").style.display = "inline-flex";
+}
+
+async function confirmUpload() {
+  if (!parsedRows.length) return;
+  if (!confirm(`${parsedRows.length} arday Firebase ku geliyaa. Ma hubtaa?`)) return;
+
+  document.getElementById("btnConfirmUpload").style.display = "none";
+  document.getElementById("progressWrap").style.display = "block";
+
+  const BATCH_SIZE = 400; // Firestore batch limit is 500
+  let done = 0;
+  const total = parsedRows.length;
+
+  try {
+    for (let i = 0; i < parsedRows.length; i += BATCH_SIZE) {
+      const chunk = parsedRows.slice(i, i + BATCH_SIZE);
+      const batch = window._writeBatch();
+      chunk.forEach(student => {
+        const ref = window._doc(student.arday_id);
+        batch.set(ref, student);
+      });
+      await batch.commit();
+      done += chunk.length;
+      const pct = Math.round((done / total) * 100);
+      document.getElementById("progressBar").style.width = pct + "%";
+      document.getElementById("progressBar").textContent = pct + "%";
+      setLog(`⏳ ${done} / ${total} arday la geliyay...`);
+    }
+    setLog(`🎉 ${total} arday oo si guul ah Firebase ugu geliyay!`);
+    document.getElementById("progressBar").style.background = "linear-gradient(90deg,#16a34a,#22c55e)";
+    parsedRows = [];
+    setTimeout(() => {
+      closeOverlay("uploadOverlay");
+      resetUpload();
+      loadAdminData();
+    }, 1800);
+  } catch(err) {
+    setLog("❌ Khalad Firebase: " + err.message);
+    document.getElementById("btnConfirmUpload").style.display = "inline-flex";
+  }
+}
+
+function setLog(msg) { document.getElementById("uploadLog").textContent = msg; }
+
+function resetUpload() {
+  parsedRows = [];
+  document.getElementById("excelFile").value = "";
+  document.getElementById("uploadSummary").style.display = "none";
+  document.getElementById("previewWrap").style.display = "none";
+  document.getElementById("progressWrap").style.display = "block";
+  document.getElementById("progressBar").style.width = "0%";
+  document.getElementById("progressBar").textContent = "0%";
+  document.getElementById("progressWrap").style.display = "none";
+  document.getElementById("btnConfirmUpload").style.display = "none";
+  setLog("");
+}
+
+// ─── BULK DELETE ─────────────────────────────────────────────────────────────
+function toggleCheckAll(master) {
+  document.querySelectorAll(".row-check").forEach(cb => {
+    cb.checked = master.checked;
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll(".row-check:checked");
+  const bar = document.getElementById("bulkBar");
+  const countEl = document.getElementById("bulkCount");
+  // update master checkbox state
+  const all = document.querySelectorAll(".row-check");
+  const masterCb = document.getElementById("checkAll");
+  if (masterCb) {
+    masterCb.indeterminate = checked.length > 0 && checked.length < all.length;
+    masterCb.checked = all.length > 0 && checked.length === all.length;
+  }
+  if (checked.length > 0) {
+    bar.classList.add("active");
+    countEl.textContent = checked.length + " arday oo la doortay";
+  } else {
+    bar.classList.remove("active");
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll(".row-check").forEach(cb => cb.checked = false);
+  const masterCb = document.getElementById("checkAll");
+  if (masterCb) { masterCb.checked = false; masterCb.indeterminate = false; }
+  document.getElementById("bulkBar").classList.remove("active");
+}
+
+async function bulkDelete() {
+  const checked = Array.from(document.querySelectorAll(".row-check:checked"));
+  if (!checked.length) return;
+  if (!confirm(checked.length + " arday tirtiri doontaa. Ma hubtaa?")) return;
+
+  const ids = checked.map(cb => cb.value);
+  const BATCH_SIZE = 400;
+  try {
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const chunk = ids.slice(i, i + BATCH_SIZE);
+      const batch = window._writeBatch();
+      chunk.forEach(id => batch.delete(window._docRef(id)));
+      await batch.commit();
+    }
+    clearSelection();
+    loadAdminData();
+  } catch(err) {
+    alert("❌ Khalad: " + err.message);
+  }
+}
+
+// ─── overlay helpers ─────────────────────────────────────────────────────────
+function openOverlay(id)  { document.getElementById(id).classList.add("active"); }
+function closeOverlay(id) { document.getElementById(id).classList.remove("active"); }
+document.querySelectorAll(".overlay").forEach(o => {
+  o.addEventListener("click", e => { if(e.target===o) o.classList.remove("active"); });
+});
+</script>
+<!-- ══ EXCEL UPLOAD MODAL ══ -->
+<div class="overlay" id="uploadOverlay">
+  <div class="modal" style="width:min(95vw,700px)">
+    <h2>📊 Excel / CSV Upload — Ardayda Oo Dhan</h2>
+
+    <!-- Drop zone -->
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(this.files[0])"/>
+      <div class="upload-icon">📂</div>
+      <p><strong>Guji ama fayl halkan u jiid</strong></p>
+      <p>Supports: Excel (.xlsx, .xls) iyo CSV (.csv)</p>
+    </div>
+
+    <!-- Column guide -->
+    <details style="margin-bottom:12px;font-size:.82rem;color:var(--muted)">
+      <summary style="cursor:pointer;color:var(--green);font-weight:700">📋 Column-yada loo baahan yahay (riix si aad u aragto)</summary>
+      <div style="background:#f9fafb;border-radius:8px;padding:10px 14px;margin-top:8px;line-height:1.9">
+        <strong style="color:var(--text)">Magacyada column-yada (Term 1 — waajib):</strong><br/>
+        <code>ID</code> · <code>magac</code> · <code>fasal</code> · <code>cilmibulsho</code> · <code>somali</code> · <code>xisaab</code> · <code>saynis</code> · <code>carabi</code> · <code>tarabiyo</code> · <code>english</code> · <code>ict</code><br/>
+        <strong style="color:var(--text)">Ikhtiyaari (Term 2 — maaddo kala saaran):</strong><br/>
+        <code>cilmibulsho2</code> · <code>somali2</code> · <code>xisaab2</code> · <code>saynis2</code> · <code>carabi2</code> · <code>tarabiyo2</code> · <code>english2</code> · <code>ict2</code><br/>
+        <strong style="color:var(--text)">Ama:</strong> <code>term2</code> — wadar-keliya ah (haddii aadan maaddo kala saaran u haysan Term 2). Haddii Term 2 weli aanu iman, dhammaan ka bannee.<br/>
+        <em>Term 1 iyo Term 2 (haddii maaddooyinka la geliyo) waxaa labaduba si otomaatig ah loo xisaabiyaa (wadarta maaddooyinka). Haddii Term 2 la geliyo, Dhibco iyo Goan waxaa lagu xisaabiyaa celceliska (Term1+Term2)/2.</em>
+      </div>
+    </details>
+
+    <!-- Preview summary -->
+    <div class="upload-summary" id="uploadSummary" style="display:none"></div>
+
+    <!-- Preview table -->
+    <div class="preview-table-wrap" id="previewWrap">
+      <table class="preview-table" id="previewTable"></table>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar" style="width:0%">0%</div>
+    </div>
+    <p class="upload-log" id="uploadLog"></p>
+
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="btn-secondary" onclick="resetUpload();closeOverlay('uploadOverlay')">Xir</button>
+      <button class="btn-primary" id="btnConfirmUpload" onclick="confirmUpload()" style="display:none">
+        🚀 Firebase Ku Geli
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
